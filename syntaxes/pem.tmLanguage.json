@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PEM",
+  "scopeName": "source.pem",
+  "patterns": [
+    { "include": "#header" },
+    { "include": "#footer" },
+    { "include": "#content" }
+  ],
+  "repository": {
+    "header": {
+      "name": "keyword.control.pem",
+      "match": "^-----BEGIN [A-Z ]+-----$"
+    },
+    "footer": {
+      "name": "keyword.control.pem",
+      "match": "^-----END [A-Z ]+-----$"
+    },
+    "content": {
+      "name": "string.unquoted.pem",
+      "match": "^[A-Za-z0-9+/=]+$"
+    }
+  }
+}

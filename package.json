@@ -1,0 +1,144 @@
+{
+  "name": "certview",
+  "displayName": "CertView",
+  "description": "View and inspect X.509 certificates directly in VSCode",
+  "version": "0.1.0",
+  "publisher": "certview",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#0d2137",
+    "theme": "dark"
+  },
+  "categories": ["Other", "Visualization"],
+  "keywords": ["certificate", "x509", "pem", "ssl", "tls", "crypto", "cer", "crt", "der"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "certview.openCertificate",
+        "title": "CertView: Open Certificate",
+        "icon": "$(lock)"
+      },
+      {
+        "command": "certview.refreshTree",
+        "title": "CertView: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "certview.copyFingerprint",
+        "title": "CertView: Copy Fingerprint"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "certview.certEditor",
+        "displayName": "Certificate Viewer",
+        "selector": [
+          { "filenamePattern": "*.pem" },
+          { "filenamePattern": "*.cer" },
+          { "filenamePattern": "*.crt" },
+          { "filenamePattern": "*.der" },
+          { "filenamePattern": "*.p7b" },
+          { "filenamePattern": "*.p7c" },
+          { "filenamePattern": "*.p7" },
+          { "filenamePattern": "*.pfx" },
+          { "filenamePattern": "*.p12" },
+          { "filenamePattern": "*.csr" },
+          { "filenamePattern": "*.req" },
+          { "filenamePattern": "*.crl" }
+        ],
+        "priority": "default"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "certview.certExplorer",
+          "name": "Certificates",
+          "icon": "$(lock)",
+          "contextualTitle": "Certificate Explorer"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "certview.refreshTree",
+          "when": "view == certview.certExplorer",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "certview.openCertificate",
+          "when": "resourceExtname =~ /\\.(pem|cer|crt|der|p7b|p7c|p7|pfx|p12|csr|req|crl)$/",
+          "group": "certview"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "pem",
+        "aliases": ["PEM", "Certificate"],
+        "extensions": [".pem"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pem",
+        "scopeName": "source.pem",
+        "path": "./syntaxes/pem.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "CertView",
+      "properties": {
+        "certview.showExpiredWarning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show warnings for expired certificates"
+        },
+        "certview.warningDaysBeforeExpiry": {
+          "type": "number",
+          "default": 30,
+          "description": "Number of days before expiry to show warning"
+        },
+        "certview.defaultView": {
+          "type": "string",
+          "enum": ["summary", "details", "raw"],
+          "default": "summary",
+          "description": "Default view when opening a certificate"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.56.0",
+    "mocha": "^10.2.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "asn1js": "^3.0.5",
+    "pkijs": "^3.2.4"
+  }
+}
