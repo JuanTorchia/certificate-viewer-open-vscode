@@ -69,11 +69,6 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     const ext = path.extname(uri.fsPath).toLowerCase();
 
     try {
-      // PKCS#12 — needs password
-      if (ext === ".pfx" || ext === ".p12") {
-        return await this.parsePkcs12(uri, raw);
-      }
-
       // Text-based formats
       if (ext !== ".der" && !isDerBuffer(raw)) {
         const text = Buffer.from(raw).toString("utf-8");
@@ -176,14 +171,6 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     };
   }
 
-  private async parsePkcs12(uri: vscode.Uri, _raw: Uint8Array): Promise<ParsedDocument> {
-    const filename = path.basename(uri.fsPath);
-    return {
-      type: "error",
-      message: `PKCS#12 files cannot be parsed directly`,
-      detail: `To inspect "${filename}", convert it first using openssl:\n\nopenssl pkcs12 -in "${filename}" -nokeys -clcerts -out certs.pem\n\nThen open certs.pem with CertView.`,
-    };
-  }
 }
 
 // Minimal CRL issuer extraction — finds first readable string after the outer SEQUENCE
