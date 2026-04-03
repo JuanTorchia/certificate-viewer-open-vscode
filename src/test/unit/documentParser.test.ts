@@ -10,10 +10,10 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
 import { parseDocument } from "../../parsers/documentParser";
+import { getCertificateStatus } from "../../models/certificate";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
 const load = (f: string) => fs.readFileSync(path.join(FIXTURES, f));
-const loadText = (f: string) => fs.readFileSync(path.join(FIXTURES, f), "utf-8");
 
 // ── Escenario: usuario abre un .pem estándar ──────────────────────────────────
 
@@ -211,14 +211,12 @@ suite("parseDocument — usuario abre archivo incorrecto", () => {
 
 suite("parseDocument + getCertificateStatus — warningDays config", () => {
   test("cert que vence en 10 días: con warningDays=30 → expiring-soon", () => {
-    const { getCertificateStatus } = require("../../models/certificate");
     const doc = parseDocument(load("expiring-soon.pem"), "expiring-soon.pem");
     assert.strictEqual(doc.type, "certificates");
     assert.strictEqual(getCertificateStatus(doc.items[0], 30), "expiring-soon");
   });
 
   test("cert que vence en 10 días: con warningDays=5 → valid", () => {
-    const { getCertificateStatus } = require("../../models/certificate");
     const doc = parseDocument(load("expiring-soon.pem"), "expiring-soon.pem");
     assert.strictEqual(doc.type, "certificates");
     // Con threshold de 5 días, 10 días restantes es "valid"
@@ -226,7 +224,6 @@ suite("parseDocument + getCertificateStatus — warningDays config", () => {
   });
 
   test("cambiar warningDays cambia el status que ve el usuario", () => {
-    const { getCertificateStatus } = require("../../models/certificate");
     const doc = parseDocument(load("expiring-soon.pem"), "expiring-soon.pem");
     assert.strictEqual(doc.type, "certificates");
     const cert = doc.items[0];

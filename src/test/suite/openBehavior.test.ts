@@ -6,15 +6,17 @@
  * These tests would have caught the priority:"option" bug automatically.
  */
 import * as assert from "assert";
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import { parseCertificateFile } from "../../parsers/certParser";
+import { buildWebviewHtml } from "../../views/certWebview";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
 const uri = (f: string) => vscode.Uri.file(path.join(FIXTURES, f));
-const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 async function openAsUser(file: string): Promise<void> {
-  // This is what VSCode does on double-click — no editor specified
   await vscode.commands.executeCommand("vscode.open", uri(file));
   await wait(600);
 }
@@ -23,11 +25,6 @@ function isOpenAsText(file: string): boolean {
   return vscode.window.visibleTextEditors.some(e =>
     e.document.uri.fsPath === uri(file).fsPath
   );
-}
-
-async function activeTabLabel(): Promise<string | undefined> {
-  const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
-  return tab?.label;
 }
 
 suite("Open behavior — user double-click simulation", () => {
@@ -44,22 +41,12 @@ suite("Open behavior — user double-click simulation", () => {
     );
   });
 
-  test(".cer opens as certificate viewer, NOT as text", async () => {
-    // .cer is just a renamed .pem or .der — should use the cert viewer
-    // Use self-signed.der renamed as .cer via a symlink-free workaround
-    const derUri = uri("self-signed.der");
-    await vscode.commands.executeCommand("vscode.open", derUri);
-    await wait(600);
+  test(".der opens as certificate viewer, NOT as text", async () => {
+    await openAsUser("self-signed.der");
     assert.ok(
       !isOpenAsText("self-signed.der"),
       ".der opened in a text editor — check customEditors selector"
     );
-  });
-
-  test(".crt opens as certificate viewer, NOT as text", async () => {
-    // .crt uses same selector — verify via .pem (same selector family)
-    await openAsUser("self-signed.pem");
-    assert.ok(!isOpenAsText("self-signed.pem"));
   });
 
   test(".p7b opens as certificate viewer, NOT as text", async () => {
@@ -85,11 +72,6 @@ suite("Open behavior — webview payload is not an error", () => {
     await wait(200);
   });
 
-  /**
-   * Checks that the active tab is NOT the text editor for the file.
-   * If it's in visibleTextEditors, the cert opened as code — which means
-   * the webview payload would show an error or nothing at all.
-   */
   async function assertOpensAsCertView(file: string, label: string): Promise<void> {
     await openAsUser(file);
     const openedAsText = isOpenAsText(file);
@@ -125,87 +107,57 @@ suite("Open behavior — webview payload is not an error", () => {
 });
 
 suite("Open behavior — webview HTML payload content", () => {
-  /**
-   * These tests verify the data-payload injected into the webview HTML
-   * contains real certificate data — not an error or empty object.
-   * Uses buildWebviewHtml directly (no VSCode needed) with parsed fixtures.
-   */
   const fixturesDir = FIXTURES;
 
-  test("self-signed.pem payload contains CN", () => {
-    const fs = require("fs") as typeof import("fs");
-    const { parseCertificateFile } = require("../../parsers/certParser");
-    const { buildWebviewHtml } = require("../../views/certWebview");
+  function parsePayload(html: string): Record<string, unknown> {
+    const match = html.match(/data-payload="([^"]+)"/);
+    assert.ok(match, "data-payload attribute not found in HTML");
+    return JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
+  }
 
-    const pem = fs.readFileSync(path.join(fixturesDir, "self-signed.pem"), "utf-8");
-    const certs = parseCertificateFile(pem);
-    const doc = { type: "certificates" as const, items: certs };
-
-    // Build a minimal fake webview/extensionUri to call buildWebviewHtml
-    const fakeWebview = {
+  function fakeWebview(): vscode.Webview {
+    return {
       options: {},
       asWebviewUri: (u: vscode.Uri) => u,
       cspSource: "",
     } as unknown as vscode.Webview;
+  }
 
-    const html = buildWebviewHtml(fakeWebview, vscode.Uri.file("/"), doc, 30);
+  test("self-signed.pem payload contains CN", () => {
+    const pem = fs.readFileSync(path.join(fixturesDir, "self-signed.pem"), "utf-8");
+    const doc = { type: "certificates" as const, items: parseCertificateFile(pem) };
+    const html = buildWebviewHtml(fakeWebview(), vscode.Uri.file("/"), doc, 30);
+    const payload = parsePayload(html) as { type: string; certs: Array<{ subject: { commonName: string } }> };
 
-    // Parse the data-payload attribute from the HTML
-    const match = html.match(/data-payload="([^"]+)"/);
-    assert.ok(match, "data-payload attribute not found in HTML");
-
-    const payload = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
     assert.strictEqual(payload.type, "certificates");
     assert.ok(Array.isArray(payload.certs));
     assert.ok(payload.certs.length >= 1);
     assert.strictEqual(payload.certs[0].subject.commonName, "self-signed.example.com");
-    assert.notStrictEqual(payload.type, "error", "Payload is an error — parser failed");
   });
 
   test("expired.pem payload has status 'expired'", () => {
-    const fs = require("fs") as typeof import("fs");
-    const { parseCertificateFile } = require("../../parsers/certParser");
-    const { buildWebviewHtml } = require("../../views/certWebview");
-
     const pem = fs.readFileSync(path.join(fixturesDir, "expired.pem"), "utf-8");
     const doc = { type: "certificates" as const, items: parseCertificateFile(pem) };
-    const fakeWebview = { asWebviewUri: (u: vscode.Uri) => u, cspSource: "" } as unknown as vscode.Webview;
+    const html = buildWebviewHtml(fakeWebview(), vscode.Uri.file("/"), doc, 30);
+    const payload = parsePayload(html) as { certs: Array<{ status: string }> };
 
-    const html = buildWebviewHtml(fakeWebview, vscode.Uri.file("/"), doc, 30);
-    const match = html.match(/data-payload="([^"]+)"/);
-    assert.ok(match);
-
-    const payload = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
     assert.strictEqual(payload.certs[0].status, "expired");
   });
 
   test("chain.pem payload contains 2 certs", () => {
-    const fs = require("fs") as typeof import("fs");
-    const { parseCertificateFile } = require("../../parsers/certParser");
-    const { buildWebviewHtml } = require("../../views/certWebview");
-
     const pem = fs.readFileSync(path.join(fixturesDir, "chain.pem"), "utf-8");
     const doc = { type: "certificates" as const, items: parseCertificateFile(pem) };
-    const fakeWebview = { asWebviewUri: (u: vscode.Uri) => u, cspSource: "" } as unknown as vscode.Webview;
+    const html = buildWebviewHtml(fakeWebview(), vscode.Uri.file("/"), doc, 30);
+    const payload = parsePayload(html) as { certs: unknown[] };
 
-    const html = buildWebviewHtml(fakeWebview, vscode.Uri.file("/"), doc, 30);
-    const match = html.match(/data-payload="([^"]+)"/);
-    assert.ok(match);
-
-    const payload = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
     assert.strictEqual(payload.certs.length, 2);
   });
 
   test("corrupt file payload is type 'error', not a crash", () => {
-    const { buildWebviewHtml } = require("../../views/certWebview");
     const doc = { type: "error" as const, message: "Failed to parse", detail: "bad bytes" };
-    const fakeWebview = { asWebviewUri: (u: vscode.Uri) => u, cspSource: "" } as unknown as vscode.Webview;
+    const html = buildWebviewHtml(fakeWebview(), vscode.Uri.file("/"), doc, 30);
+    const payload = parsePayload(html) as { type: string; message: string };
 
-    const html = buildWebviewHtml(fakeWebview, vscode.Uri.file("/"), doc, 30);
-    const match = html.match(/data-payload="([^"]+)"/);
-    assert.ok(match);
-
-    const payload = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
     assert.strictEqual(payload.type, "error");
     assert.ok(payload.message.length > 0);
   });
