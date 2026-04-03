@@ -1,279 +1,22 @@
 import * as vscode from "vscode";
 import { ParsedDocument } from "../models/parsedDocument";
-import { CertificateInfo, getCertificateStatus, getDaysUntilExpiry } from "../models/certificate";
+import { CertificateInfo, getCertificateStatus } from "../models/certificate";
 import { CsrInfo } from "../parsers/csrParser";
-import { formatDate, formatRelativeExpiry, getCertDisplayName, subjectToString } from "../utils/formatters";
+import { formatDate, formatRelativeExpiry, getCertDisplayName } from "../utils/formatters";
 
 export function buildWebviewHtml(
-  _webview: vscode.Webview,
-  _extensionUri: vscode.Uri,
+  webview: vscode.Webview,
+  extensionUri: vscode.Uri,
   doc: ParsedDocument,
   warningDays: number
 ): string {
+  const scriptUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(extensionUri, "media", "webview.js")
+  );
   const nonce = getNonce();
-  const body = buildBody(doc, warningDays);
-  return wrapHtml(nonce, body);
-}
+  const payload = buildPayload(doc, warningDays);
 
-// ── Document type dispatchers ─────────────────────────────────────────────────
-
-function buildBody(doc: ParsedDocument, warningDays: number): string {
-  switch (doc.type) {
-    case "certificates": return buildCertBody(doc.items, warningDays);
-    case "csr":          return buildCsrBody(doc.items);
-    case "crl":          return buildCrlBody(doc);
-    case "pkcs12":       return buildCertBody(doc.items, warningDays);
-    case "error":        return buildErrorBody(doc.message, doc.detail);
-  }
-}
-
-// ── Certificate view ──────────────────────────────────────────────────────────
-
-function buildCertBody(certs: CertificateInfo[], warningDays: number): string {
-  if (certs.length === 0) return buildErrorBody("No certificates found", "The file contained no parseable certificate data.");
-
-  const data = certs.map(c => serializeCert(c, warningDays));
-  const dataJson = JSON.stringify(data);
-
-  return /* html */`
-<div id="app"></div>
-<script nonce="{{NONCE}}">
-const vscode = acquireVsCodeApi();
-const certs = ${dataJson};
-let active = 0;
-
-function render() {
-  document.getElementById('app').innerHTML = renderApp();
-  bindEvents();
-}
-
-function renderApp() {
-  const tabs = certs.length > 1
-    ? '<div class="tabs">' + certs.map((c,i) =>
-        '<button class="tab'+(i===active?' active':'')+'" data-i="'+i+'">'+esc(c.displayName)+'</button>'
-      ).join('') + '</div>'
-    : '';
-  return tabs + certs.map((c,i) =>
-    '<div class="panel'+(i===active?' active':'')+'" data-p="'+i+'">'+renderCert(c)+'</div>'
-  ).join('');
-}
-
-function renderCert(c) {
-  return banner(c)
-    + section('Subject', nameFields(c.subject))
-    + section('Issuer', nameFields(c.issuer))
-    + section('Validity', validityFields(c))
-    + (c.sans.length ? section('Subject Alternative Names', sanTags(c.sans)) : '')
-    + (c.keyUsage.length ? section('Key Usage', tags(c.keyUsage)) : '')
-    + (c.extKeyUsage.length ? section('Extended Key Usage', tags(c.extKeyUsage)) : '')
-    + section('Fingerprints', fingerprintFields(c))
-    + section('Details', detailFields(c))
-    + '<button class="link-btn" onclick="openRaw()">Open as text ↗</button>';
-}
-
-function banner(c) {
-  const label = {valid:'Valid',expired:'Expired','expiring-soon':'Expiring Soon','not-yet-valid':'Not Yet Valid'};
-  const cls   = {valid:'ok',expired:'err','expiring-soon':'warn','not-yet-valid':'info'};
-  return '<div class="banner '+cls[c.status]+'">'+esc(label[c.status])+' — '+esc(c.relExpiry)+'</div>';
-}
-
-function section(title, content) {
-  return '<details open><summary>'+esc(title)+'</summary><div class="section-body">'+content+'</div></details>';
-}
-
-function nameFields(s) {
-  return [['Common Name',s.commonName],['Organization',s.org?.join(', ')],
-    ['Org. Unit',s.ou?.join(', ')],['Country',s.country?.join(', ')],
-    ['State',s.state?.join(', ')],['Locality',s.locality?.join(', ')],
-    ['Email',s.email?.join(', ')]]
-    .filter(([,v])=>v).map(([k,v])=>row(k,v)).join('');
-}
-
-function validityFields(c) {
-  return row('Not Before', c.notBefore) + row('Not After', c.notAfter) + row('Status', c.relExpiry);
-}
-
-function sanTags(sans) {
-  return '<div class="row"><div class="tags">'+
-    sans.map(s=>'<span class="tag">'+esc(s.type.toUpperCase())+': '+esc(s.value)+'</span>').join('')+
-    '</div></div>';
-}
-
-function tags(items) {
-  return '<div class="row"><div class="tags">'+
-    items.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+
-    '</div></div>';
-}
-
-function fingerprintFields(c) {
-  return fpRow('SHA-1', c.sha1) + fpRow('SHA-256', c.sha256);
-}
-
-function detailFields(c) {
-  return row('Serial Number', c.serial)
-    + row('Version', 'v'+c.version)
-    + row('Public Key', c.pubKey+(c.keySize?' '+c.keySize+' bit':''))
-    + row('Signature Algorithm', c.sigAlg)
-    + row('Self-Signed', c.selfSigned?'Yes':'No')
-    + row('CA Certificate', c.isCA?'Yes':'No');
-}
-
-function row(label, value) {
-  if (!value) return '';
-  return '<div class="row"><span class="lbl">'+esc(label)+'</span><span class="val">'+esc(String(value))+'</span></div>';
-}
-
-function fpRow(label, value) {
-  return '<div class="row"><span class="lbl">'+esc(label)+'</span><span class="val mono">'+esc(value)+
-    '<button class="copy-btn" data-v="'+esc(value)+'">Copy</button></span></div>';
-}
-
-function esc(s) {
-  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function bindEvents() {
-  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{active=+b.dataset.i;render();}));
-  document.querySelectorAll('.copy-btn').forEach(b=>b.addEventListener('click',()=>{
-    vscode.postMessage({command:'copyText',data:b.dataset.v});
-  }));
-}
-
-function openRaw() { vscode.postMessage({command:'openRaw'}); }
-
-render();
-</script>`;
-}
-
-// ── CSR view ──────────────────────────────────────────────────────────────────
-
-function buildCsrBody(csrs: CsrInfo[]): string {
-  const items = csrs.map(c => ({
-    displayName: c.subject.commonName ?? "Certificate Request",
-    subject: {
-      commonName: c.subject.commonName,
-      org: c.subject.organization,
-      ou: c.subject.organizationalUnit,
-      country: c.subject.country,
-      state: c.subject.state,
-      locality: c.subject.locality,
-      email: c.subject.emailAddress,
-    },
-    pubKey: c.publicKeyAlgorithm,
-    keySize: c.publicKeySize,
-    sigAlg: c.signatureAlgorithm,
-    sans: c.subjectAltNames,
-  }));
-
-  return /* html */`
-<div class="badge-type">CERTIFICATE REQUEST</div>
-<div id="app"></div>
-<script nonce="{{NONCE}}">
-const vscode = acquireVsCodeApi();
-const items = ${JSON.stringify(items)};
-let active = 0;
-function render() {
-  document.getElementById('app').innerHTML =
-    (items.length > 1 ? '<div class="tabs">'+items.map((c,i)=>'<button class="tab'+(i===active?' active':'')+'" data-i="'+i+'">'+esc(c.displayName)+'</button>').join('')+'</div>' : '') +
-    items.map((c,i)=>'<div class="panel'+(i===active?' active':'')+'" data-p="'+i+'">'+renderCsr(c)+'</div>').join('');
-  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{active=+b.dataset.i;render();}));
-}
-function renderCsr(c) {
-  return section('Requested Subject', nameFields(c.subject))
-    + section('Public Key', row('Algorithm', c.pubKey) + (c.keySize ? row('Key Size', c.keySize+' bit') : ''))
-    + row('Signature Algorithm', c.sigAlg)
-    + (c.sans.length ? section('Requested SANs', '<div class="row"><div class="tags">'+c.sans.map(s=>'<span class="tag">'+esc(s)+'</span>').join('')+'</div></div>') : '');
-}
-function section(t,b){return '<details open><summary>'+esc(t)+'</summary><div class="section-body">'+b+'</div></details>';}
-function nameFields(s){return[['Common Name',s.commonName],['Organization',s.org?.join(', ')],['Org. Unit',s.ou?.join(', ')],['Country',s.country?.join(', ')],['State',s.state?.join(', ')],['Locality',s.locality?.join(', ')],['Email',s.email?.join(', ')]].filter(([,v])=>v).map(([k,v])=>row(k,v)).join('');}
-function row(l,v){if(!v)return'';return'<div class="row"><span class="lbl">'+esc(l)+'</span><span class="val">'+esc(String(v))+'</span></div>';}
-function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-render();
-</script>`;
-}
-
-// ── CRL view ─────────────────────────────────────────────────────────────────
-
-function buildCrlBody(doc: { issuer: string; thisUpdate: string; nextUpdate: string; revokedCount: number; }): string {
-  return `
-<div class="badge-type">CERTIFICATE REVOCATION LIST</div>
-<details open><summary>CRL Info</summary><div class="section-body">
-  <div class="row"><span class="lbl">Issuer</span><span class="val">${esc(doc.issuer)}</span></div>
-  <div class="row"><span class="lbl">This Update</span><span class="val">${esc(doc.thisUpdate)}</span></div>
-  <div class="row"><span class="lbl">Next Update</span><span class="val">${esc(doc.nextUpdate)}</span></div>
-  ${doc.revokedCount >= 0 ? `<div class="row"><span class="lbl">Revoked Entries</span><span class="val">${doc.revokedCount}</span></div>` : ""}
-</div></details>
-<button class="link-btn" id="openRawBtn">Open raw ↗</button>
-<script nonce="{{NONCE}}">
-const vscode = acquireVsCodeApi();
-document.getElementById('openRawBtn').addEventListener('click', function() {
-  vscode.postMessage({command: 'openRaw'});
-});
-</script>`;
-}
-
-// ── Error view ────────────────────────────────────────────────────────────────
-
-function buildErrorBody(message: string, detail?: string): string {
-  return `
-<div class="error-card">
-  <div class="error-title">${esc(message)}</div>
-  ${detail ? `<pre class="error-detail">${esc(detail)}</pre>` : ""}
-</div>`;
-}
-
-// ── Serialization helpers ─────────────────────────────────────────────────────
-
-function serializeCert(cert: CertificateInfo, warningDays: number): Record<string, unknown> {
-  const status = getCertificateStatus(cert, warningDays);
-  return {
-    displayName: getCertDisplayName(cert.subject, cert.serialNumber),
-    version: cert.version,
-    serial: cert.serialNumber,
-    subject: {
-      commonName: cert.subject.commonName,
-      org: cert.subject.organization,
-      ou: cert.subject.organizationalUnit,
-      country: cert.subject.country,
-      state: cert.subject.state,
-      locality: cert.subject.locality,
-      email: cert.subject.emailAddress,
-    },
-    issuer: {
-      commonName: cert.issuer.commonName,
-      org: cert.issuer.organization,
-      ou: cert.issuer.organizationalUnit,
-      country: cert.issuer.country,
-      state: cert.issuer.state,
-      locality: cert.issuer.locality,
-      email: cert.issuer.emailAddress,
-    },
-    notBefore: formatDate(cert.validity.notBefore),
-    notAfter: formatDate(cert.validity.notAfter),
-    relExpiry: formatRelativeExpiry(cert.validity.notAfter),
-    status,
-    sans: cert.subjectAltNames,
-    keyUsage: cert.keyUsage,
-    extKeyUsage: cert.extendedKeyUsage,
-    sha1: cert.fingerprints.sha1,
-    sha256: cert.fingerprints.sha256,
-    pubKey: cert.publicKeyAlgorithm,
-    keySize: cert.publicKeySize,
-    sigAlg: cert.signatureAlgorithm,
-    selfSigned: cert.isSelfSigned,
-    isCA: cert.isCA,
-  };
-}
-
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-// ── HTML shell ────────────────────────────────────────────────────────────────
-
-function wrapHtml(nonce: string, body: string): string {
-  const withNonce = body.replace(/\{\{NONCE\}\}/g, nonce);
-  return /* html */`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -330,13 +73,93 @@ function wrapHtml(nonce: string, body: string): string {
                   color:var(--vscode-descriptionForeground)}
   </style>
 </head>
-<body>${withNonce}</body>
+<body>
+  <div id="app"></div>
+  <script nonce="${nonce}">window.__cv=${JSON.stringify(payload)};</script>
+  <script nonce="${nonce}" src="${scriptUri}"></script>
+</body>
 </html>`;
+}
+
+// ── Payload builders ──────────────────────────────────────────────────────────
+
+function buildPayload(doc: ParsedDocument, warningDays: number): unknown {
+  switch (doc.type) {
+    case "certificates":
+    case "pkcs12":
+      return { type: "certificates", certs: doc.items.map(c => serializeCert(c, warningDays)), warningDays };
+    case "csr":
+      return { type: "csr", csrs: doc.items.map(serializeCsr) };
+    case "crl":
+      return { type: "crl", crl: { issuer: doc.issuer, thisUpdate: doc.thisUpdate, nextUpdate: doc.nextUpdate, revokedCount: doc.revokedCount } };
+    case "error":
+      return { type: "error", message: doc.message, detail: doc.detail ?? "" };
+  }
+}
+
+function serializeCert(cert: CertificateInfo, warningDays: number): Record<string, unknown> {
+  const status = getCertificateStatus(cert, warningDays);
+  return {
+    displayName: getCertDisplayName(cert.subject, cert.serialNumber),
+    version: cert.version,
+    serial: cert.serialNumber,
+    subject: {
+      commonName: cert.subject.commonName,
+      org: cert.subject.organization,
+      ou: cert.subject.organizationalUnit,
+      country: cert.subject.country,
+      state: cert.subject.state,
+      locality: cert.subject.locality,
+      email: cert.subject.emailAddress,
+    },
+    issuer: {
+      commonName: cert.issuer.commonName,
+      org: cert.issuer.organization,
+      ou: cert.issuer.organizationalUnit,
+      country: cert.issuer.country,
+      state: cert.issuer.state,
+      locality: cert.issuer.locality,
+      email: cert.issuer.emailAddress,
+    },
+    notBefore: formatDate(cert.validity.notBefore),
+    notAfter: formatDate(cert.validity.notAfter),
+    relExpiry: formatRelativeExpiry(cert.validity.notAfter),
+    status,
+    sans: cert.subjectAltNames,
+    keyUsage: cert.keyUsage,
+    extKeyUsage: cert.extendedKeyUsage,
+    sha1: cert.fingerprints.sha1,
+    sha256: cert.fingerprints.sha256,
+    pubKey: cert.publicKeyAlgorithm,
+    keySize: cert.publicKeySize,
+    sigAlg: cert.signatureAlgorithm,
+    selfSigned: cert.isSelfSigned,
+    isCA: cert.isCA,
+  };
+}
+
+function serializeCsr(csr: CsrInfo): Record<string, unknown> {
+  return {
+    displayName: csr.subject.commonName ?? "Certificate Request",
+    subject: {
+      commonName: csr.subject.commonName,
+      org: csr.subject.organization,
+      ou: csr.subject.organizationalUnit,
+      country: csr.subject.country,
+      state: csr.subject.state,
+      locality: csr.subject.locality,
+      email: csr.subject.emailAddress,
+    },
+    pubKey: csr.publicKeyAlgorithm,
+    keySize: csr.publicKeySize,
+    sigAlg: csr.signatureAlgorithm,
+    sans: csr.subjectAltNames,
+  };
 }
 
 function getNonce(): string {
   let t = "";
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) t += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 32; i++) { t += chars[Math.floor(Math.random() * chars.length)]; }
   return t;
 }
