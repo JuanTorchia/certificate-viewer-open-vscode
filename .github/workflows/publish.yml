@@ -64,6 +64,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Publish
-        run: pnpm dlx @vscode/vsce publish --no-dependencies
+        run: npx --yes @vscode/vsce publish --no-dependencies
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
