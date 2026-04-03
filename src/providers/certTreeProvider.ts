@@ -37,7 +37,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
 
   private registerFileWatcher(): void {
     this.fileWatcher = vscode.workspace.createFileSystemWatcher(
-      "**/*.{pem,cer,crt,der,p7b,p7c,p7,pfx,p12,csr,req,crl}"
+      "**/*.{pem,cer,crt,der,p7b,p7c,p7,crl}"
     );
     this.fileWatcher.onDidCreate(() => this.refresh());
     this.fileWatcher.onDidDelete(() => this.refresh());
@@ -75,7 +75,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
 
   private async getCertFiles(): Promise<CertTreeItem[]> {
     const uris = await vscode.workspace.findFiles(
-      "**/*.{pem,cer,crt,der,p7b,p7c,p7,pfx,p12,csr,req,crl}",
+      "**/*.{pem,cer,crt,der,p7b,p7c,p7,crl}",
       "**/node_modules/**"
     );
 
@@ -105,12 +105,9 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
       const raw = await vscode.workspace.fs.readFile(uri);
       const ext = path.extname(uri.fsPath).toLowerCase();
 
-      // Skip formats that don't expose cert info directly in the tree
-      if ([".pfx", ".p12", ".csr", ".req", ".crl"].includes(ext)) {
-        const label = ext === ".csr" || ext === ".req" ? "Certificate Request"
-          : ext === ".crl" ? "Revocation List"
-          : "PKCS#12 (password required)";
-        const item = new CertTreeItem(label, vscode.TreeItemCollapsibleState.None, "field");
+      // Skip CRL format — no cert details to show in tree
+      if (ext === ".crl") {
+        const item = new CertTreeItem("Revocation List", vscode.TreeItemCollapsibleState.None, "field");
         item.iconPath = new vscode.ThemeIcon("info");
         return [item];
       }
