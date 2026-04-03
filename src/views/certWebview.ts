@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { ParsedDocument } from "../models/parsedDocument";
 import { CertificateInfo, getCertificateStatus } from "../models/certificate";
-import { CsrInfo } from "../parsers/csrParser";
 import { formatDate, formatRelativeExpiry, getCertDisplayName } from "../utils/formatters";
 
 export function buildWebviewHtml(
@@ -86,10 +85,7 @@ export function buildWebviewHtml(
 function buildPayload(doc: ParsedDocument, warningDays: number): unknown {
   switch (doc.type) {
     case "certificates":
-    case "pkcs12":
       return { type: "certificates", certs: doc.items.map(c => serializeCert(c, warningDays)), warningDays };
-    case "csr":
-      return { type: "csr", csrs: doc.items.map(serializeCsr) };
     case "crl":
       return { type: "crl", crl: { issuer: doc.issuer, thisUpdate: doc.thisUpdate, nextUpdate: doc.nextUpdate, revokedCount: doc.revokedCount } };
     case "error":
@@ -138,24 +134,6 @@ function serializeCert(cert: CertificateInfo, warningDays: number): Record<strin
   };
 }
 
-function serializeCsr(csr: CsrInfo): Record<string, unknown> {
-  return {
-    displayName: csr.subject.commonName ?? "Certificate Request",
-    subject: {
-      commonName: csr.subject.commonName,
-      org: csr.subject.organization,
-      ou: csr.subject.organizationalUnit,
-      country: csr.subject.country,
-      state: csr.subject.state,
-      locality: csr.subject.locality,
-      email: csr.subject.emailAddress,
-    },
-    pubKey: csr.publicKeyAlgorithm,
-    keySize: csr.publicKeySize,
-    sigAlg: csr.signatureAlgorithm,
-    sans: csr.subjectAltNames,
-  };
-}
 
 function getNonce(): string {
   let t = "";

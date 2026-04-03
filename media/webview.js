@@ -109,39 +109,6 @@
     render();
   }
 
-  // ── CSR view ────────────────────────────────────────────────────────────────
-
-  function renderCsrs(items) {
-    var active = 0;
-
-    function renderCsr(c) {
-      return section('Requested Subject', nameFields(c.subject))
-        + section('Public Key',
-          row('Algorithm', c.pubKey) + (c.keySize ? row('Key Size', c.keySize + ' bit') : ''))
-        + row('Signature Algorithm', c.sigAlg)
-        + (c.sans.length ? section('Requested SANs',
-          '<div class="row"><div class="tags">' + c.sans.map(function (s) {
-            return '<span class="tag">' + esc(s) + '</span>';
-          }).join('') + '</div></div>') : '');
-    }
-
-    function render() {
-      var tabs = items.length > 1
-        ? '<div class="tabs">' + items.map(function (c, i) {
-          return '<button class="tab' + (i === active ? ' active' : '') + '" data-i="' + i + '">' + esc(c.displayName) + '</button>';
-        }).join('') + '</div>'
-        : '';
-      document.getElementById('app').innerHTML = tabs + items.map(function (c, i) {
-        return '<div class="panel' + (i === active ? ' active' : '') + '">' + renderCsr(c) + '</div>';
-      }).join('');
-      document.querySelectorAll('.tab').forEach(function (b) {
-        b.addEventListener('click', function () { active = parseInt(b.dataset.i, 10); render(); });
-      });
-    }
-
-    render();
-  }
-
   // ── CRL view ────────────────────────────────────────────────────────────────
 
   function renderCrl(data) {
@@ -175,7 +142,6 @@
 
   switch (doc.type) {
     case 'certificates': renderCerts(doc.certs, doc.warningDays); break;
-    case 'csr': renderCsrs(doc.csrs); break;
     case 'crl': renderCrl(doc.crl); break;
     case 'error': renderError(doc.message, doc.detail); break;
     default: renderError('Unknown document type', '');
