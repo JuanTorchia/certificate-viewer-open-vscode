@@ -3,14 +3,13 @@
 .github/**
 src/**
 out/test/**
+out/**/*.map
 testcerts/**
 node_modules/**
+images/icon.svg
 .gitignore
 .eslintrc.json
 tsconfig.json
 tsconfig.test.json
 pnpm-lock.yaml
-**/*.map
-**/*.ts
-!out/**
 *.vsix
