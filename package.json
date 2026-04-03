@@ -18,7 +18,7 @@
     "theme": "dark"
   },
   "categories": ["Other", "Visualization"],
-  "keywords": ["certificate", "x509", "pem", "cer", "crt", "der", "pkcs"],
+  "keywords": ["certificate", "x509", "pem", "cer", "crt", "der"],
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {

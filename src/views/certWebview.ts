@@ -24,6 +24,7 @@ export function buildWebviewHtml(
     content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>CertView</title>
+  <div id="__cv" data-payload="${escapeAttr(JSON.stringify(payload))}" style="display:none"></div>
   <style nonce="${nonce}">
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:var(--vscode-font-family);font-size:var(--vscode-font-size);
@@ -75,7 +76,6 @@ export function buildWebviewHtml(
 </head>
 <body>
   <div id="app"></div>
-  <script nonce="${nonce}">window.__cv=${JSON.stringify(payload)};</script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
@@ -162,4 +162,8 @@ function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for (let i = 0; i < 32; i++) { t += chars[Math.floor(Math.random() * chars.length)]; }
   return t;
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }

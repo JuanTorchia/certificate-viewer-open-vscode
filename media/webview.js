@@ -1,8 +1,9 @@
 // CertView webview script
-// Receives data via window.__cv injected by the extension host
+// Receives data via #__cv data-payload attribute injected by the extension host
 (function () {
   const vscode = acquireVsCodeApi();
-  const doc = window.__cv;
+  var el = document.getElementById('__cv');
+  const doc = el ? JSON.parse(el.getAttribute('data-payload') || 'null') : null;
 
   function esc(s) {
     return String(s == null ? '' : s)
