@@ -16,11 +16,7 @@ export type KnownPemType =
   | "NEW CERTIFICATE REQUEST"
   | "PKCS7"
   | "X509 CRL"
-  | "PRIVATE KEY"
-  | "RSA PRIVATE KEY"
-  | "EC PRIVATE KEY"
-  | "PUBLIC KEY"
-  | "ENCRYPTED PRIVATE KEY";
+  | "PUBLIC KEY";
 
 /**
  * Splits a PEM file (potentially multi-block) into individual blocks.
@@ -93,9 +89,7 @@ export function base64ToDer(base64: string): Uint8Array {
 export function detectFormat(
   content: string | Uint8Array,
   extension: string
-): KnownPemType | "DER" | "PKCS12" | "UNKNOWN" {
-  if (extension === ".pfx" || extension === ".p12") return "PKCS12";
-
+): KnownPemType | "DER" | "UNKNOWN" {
   if (typeof content !== "string") {
     return isDerBuffer(content) ? "DER" : "UNKNOWN";
   }
