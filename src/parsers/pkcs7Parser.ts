@@ -40,6 +40,12 @@ export function extractCertsFromPkcs7(input: string | Uint8Array): string[] {
   try {
     return extractCertsFromDer(der);
   } catch (err) {
+    if (typeof input === "string") {
+      const certBlocks = splitPemBlocks(input).filter(b => b.type === "CERTIFICATE");
+      if (certBlocks.length > 0) {
+        return certBlocks.map(b => b.pem);
+      }
+    }
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Failed to parse PKCS#7 structure: ${msg}`);
   }
