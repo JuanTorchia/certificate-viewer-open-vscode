@@ -38,9 +38,7 @@ jobs:
         run: node ./out/test/unit/index.js
 
       - name: Integration Tests (Electron)
-        uses: coactions/setup-xvfb@v1
-        with:
-          run: pnpm test
+        run: xvfb-run -a pnpm test
 
   publish:
     name: Publish to Marketplace
