@@ -26,7 +26,7 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     _openContext: vscode.CustomDocumentOpenContext,
     _token: vscode.CancellationToken
   ): Promise<vscode.CustomDocument> {
-    return { uri, dispose: () => {} };
+    return { uri, dispose: (): void => {} };
   }
 
   async resolveCustomEditor(

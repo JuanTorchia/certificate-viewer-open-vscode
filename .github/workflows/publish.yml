@@ -67,6 +67,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Publish
-        run: npx --yes @vscode/vsce publish --no-dependencies
+        run: |
+          output=$(npx --yes @vscode/vsce publish --no-dependencies 2>&1)
+          code=$?
+          echo "$output"
+          if [ $code -ne 0 ] && ! echo "$output" | grep -q "already exists"; then
+            exit $code
+          fi
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
