@@ -63,11 +63,14 @@ jobs:
 
       - name: Publish
         run: |
-          output=$(npx --yes @vscode/vsce publish --no-dependencies 2>&1)
-          code=$?
-          echo "$output"
-          if [ $code -ne 0 ] && ! echo "$output" | grep -q "already exists"; then
-            exit $code
+          if output=$(npx --yes @vscode/vsce publish --no-dependencies 2>&1); then
+            echo "$output"
+          else
+            echo "$output"
+            if ! echo "$output" | grep -q "already exists"; then
+              exit 1
+            fi
+            echo "Version already published — skipping."
           fi
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
