@@ -25,11 +25,15 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
     if (ext !== ".der" && !isDerBuffer(raw)) {
       const text = Buffer.from(raw).toString("utf-8").replace(/^\uFEFF/, ""); // strip BOM
 
+      if (ext === ".jwk") {
+        return { type: "keys", items: parseKeyFile(raw, filename) };
+      }
+
       if (!isPemContent(text)) {
         return parseDer(raw);
       }
 
-      if (/-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/.test(text) || /-----BEGIN (?:[A-Z ]+ )?PUBLIC KEY-----/.test(text)) {
+      if (/-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/.test(text) || /-----BEGIN (?:[A-Z ]+ )?PUBLIC KEY-----/.test(text) || ext === ".jwk") {
         return { type: "keys", items: parseKeyFile(raw, filename) };
       }
 

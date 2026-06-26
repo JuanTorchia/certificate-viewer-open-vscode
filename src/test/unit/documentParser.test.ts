@@ -7,6 +7,7 @@
  * Cada test corresponde a un escenario real de usuario, no a una unidad interna.
  */
 import * as assert from "assert";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { parseDocument } from "../../parsers/documentParser";
@@ -204,6 +205,32 @@ suite("parseDocument — usuario abre archivo incorrecto", () => {
     );
     const doc = parseDocument(privateKey, "key.pem");
     assert.strictEqual(doc.type, "error");
+  });
+});
+
+suite("parseDocument — usuario abre llaves", () => {
+  test("JWK public key is rendered as a key document", () => {
+    const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const jwk = publicKey.export({ format: "jwk" });
+    const doc = parseDocument(Buffer.from(JSON.stringify(jwk)), "key.jwk");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].format, "JWK");
+  });
+
+  test("ML-DSA public key is rendered when runtime supports it", function () {
+    let publicKey: crypto.KeyObject;
+    try {
+      const generateKeyPairSync = crypto.generateKeyPairSync as (type: string) => crypto.KeyPairKeyObjectResult;
+      publicKey = generateKeyPairSync("ml-dsa-65").publicKey;
+    } catch {
+      this.skip();
+      return;
+    }
+    const pem = publicKey.export({ type: "spki", format: "pem" }).toString();
+    const doc = parseDocument(Buffer.from(pem), "mldsa.pub");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].algorithm, "ML-DSA-65");
   });
 });
 

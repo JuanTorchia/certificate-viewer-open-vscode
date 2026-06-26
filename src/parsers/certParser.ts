@@ -17,6 +17,22 @@ const EXTENDED_KEY_USAGE_OID: Record<string, string> = {
   "1.3.6.1.5.5.7.3.4": "Email Protection",
   "1.3.6.1.5.5.7.3.8": "Time Stamping",
   "1.3.6.1.5.5.7.3.9": "OCSP Signing",
+  "1.3.6.1.5.5.7.3.21": "SSH Client",
+};
+
+const SIGNATURE_ALGORITHM_OID: Record<string, string> = {
+  "1.2.840.113549.1.1.5": "sha1WithRSAEncryption",
+  "1.2.840.113549.1.1.11": "sha256WithRSAEncryption",
+  "1.2.840.113549.1.1.12": "sha384WithRSAEncryption",
+  "1.2.840.113549.1.1.13": "sha512WithRSAEncryption",
+  "1.2.840.10045.4.3.2": "ecdsa-with-SHA256",
+  "1.2.840.10045.4.3.3": "ecdsa-with-SHA384",
+  "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
+  "1.3.101.112": "Ed25519",
+  "1.3.101.113": "Ed448",
+  "2.16.840.1.101.3.4.3.17": "ML-DSA-44",
+  "2.16.840.1.101.3.4.3.18": "ML-DSA-65",
+  "2.16.840.1.101.3.4.3.19": "ML-DSA-87",
 };
 
 const TLS_FEATURES: Record<number, string> = {
@@ -78,7 +94,7 @@ export function parseCertificateFile(content: string | Uint8Array): CertificateI
     throw new Error(`Certificate file exceeds the maximum of ${MAX_CERTIFICATES} certificates.`);
   }
 
-  return pems.map((pem, idx) => {
+  const certs = pems.map((pem, idx) => {
     try {
       return parseSinglePem(pem);
     } catch (err) {
@@ -86,6 +102,8 @@ export function parseCertificateFile(content: string | Uint8Array): CertificateI
       throw new Error(`Certificate #${idx + 1}: ${msg}`);
     }
   });
+  addChainFindings(certs);
+  return certs;
 }
 
 function parseSinglePem(pem: string): CertificateInfo {
@@ -105,7 +123,8 @@ function parseSinglePem(pem: string): CertificateInfo {
   const extensions = buildExtensions(x509, parsedExtensions);
   const basicConstraints = parseBasicConstraints(parsedExtensions);
   const nameConstraints = extensionValue(parsedExtensions, "2.5.29.30");
-  const findings = validateCertificate(x509, subject, keyUsage, extendedKeyUsage, extensions, basicConstraints);
+  const signatureAlgorithm = getSignatureAlgorithm(x509, pem);
+  const findings = validateCertificate(x509, subject, keyUsage, extendedKeyUsage, extensions, basicConstraints, algorithm, keySize, signatureAlgorithm);
 
   return {
     pem,
@@ -123,7 +142,7 @@ function parseSinglePem(pem: string): CertificateInfo {
     extensions,
     basicConstraints,
     nameConstraints,
-    signatureAlgorithm: (x509 as { signatureAlgorithm?: string }).signatureAlgorithm ?? "Unknown",
+    signatureAlgorithm,
     publicKeyAlgorithm: algorithm,
     publicKeySize: keySize,
     publicKeyPem: x509.publicKey.export({ type: "spki", format: "pem" }).toString(),
@@ -314,6 +333,25 @@ function getPublicKeyInfo(key: crypto.KeyObject): { algorithm: string; keySize?:
   } catch {
     return { algorithm: "unknown" };
   }
+}
+
+function getSignatureAlgorithm(x509: crypto.X509Certificate, pem: string): string {
+  const nodeAlgorithm = (x509 as { signatureAlgorithm?: string }).signatureAlgorithm;
+  if (nodeAlgorithm) return nodeAlgorithm;
+  try {
+    const der = Buffer.from(pem.replace(/-----[^-]+-----/g, "").replace(/\s/g, ""), "base64").toString("binary");
+    const cert = forge.asn1.fromDer(der);
+    const values = Array.isArray(cert.value) ? cert.value as forge.asn1.Asn1[] : [];
+    const algSeq = values[1];
+    const oidNode = Array.isArray(algSeq?.value) ? algSeq.value[0] as forge.asn1.Asn1 : undefined;
+    if (typeof oidNode?.value === "string") {
+      const oidValue = forge.asn1.derToOid(oidNode.value);
+      return SIGNATURE_ALGORITHM_OID[oidValue] ?? oidValue;
+    }
+  } catch {
+    // fall through
+  }
+  return "Unknown";
 }
 
 
@@ -610,20 +648,73 @@ function validateCertificate(
   keyUsage: string[],
   extendedKeyUsage: string[],
   extensions: CertificateExtension[],
-  basicConstraints?: { ca: boolean; pathLenConstraint?: number }
+  basicConstraints: { ca: boolean; pathLenConstraint?: number } | undefined,
+  publicKeyAlgorithm: string,
+  publicKeySize: number | undefined,
+  signatureAlgorithm: string
 ): CertificateFinding[] {
   const findings: CertificateFinding[] = [];
   const now = Date.now();
   if (new Date(x509.validTo).getTime() < now) findings.push({ severity: "error", message: "Certificate is expired.", rfc: "RFC 5280 §4.1.2.5" });
   if (new Date(x509.validFrom).getTime() > now) findings.push({ severity: "error", message: "Certificate is not yet valid.", rfc: "RFC 5280 §4.1.2.5" });
   if (!subject.commonName && !x509.subjectAltName) findings.push({ severity: "warning", message: "Certificate has neither subject CN nor SAN.", rfc: "RFC 5280 §4.1.2.6, §4.2.1.6" });
+  if (safeCA(x509) && !basicConstraints?.ca) findings.push({ severity: "error", message: "Certificate is treated as a CA but Basic Constraints CA=true was not decoded.", rfc: "RFC 5280 §4.2.1.9" });
+  if (basicConstraints?.ca && !extensions.some(ext => ext.oid === "2.5.29.19" && ext.critical)) findings.push({ severity: "warning", message: "CA Basic Constraints should be marked critical.", rfc: "RFC 5280 §4.2.1.9" });
   if (basicConstraints?.ca && !keyUsage.includes("keyCertSign")) findings.push({ severity: "warning", message: "CA certificate lacks keyCertSign key usage.", rfc: "RFC 5280 §4.2.1.3, §4.2.1.9" });
   if (!basicConstraints?.ca && keyUsage.includes("keyCertSign")) findings.push({ severity: "warning", message: "End-entity certificate includes keyCertSign.", rfc: "RFC 5280 §4.2.1.3" });
-  if (extendedKeyUsage.includes("serverAuth") && !x509.subjectAltName) findings.push({ severity: "warning", message: "TLS server certificate should include DNS/IP subjectAltName.", rfc: "RFC 6125 §6.4.4" });
+  if (hasServerAuth(extendedKeyUsage) && !x509.subjectAltName) findings.push({ severity: "warning", message: "TLS server certificate should include DNS/IP subjectAltName.", rfc: "RFC 6125 §6.4.4" });
+  if (/MD5|SHA1|SHA-1/i.test(signatureAlgorithm)) findings.push({ severity: "warning", message: `Weak signature algorithm: ${signatureAlgorithm}.`, rfc: "RFC 5280 §4.1.1.2" });
+  if (publicKeyAlgorithm.startsWith("RSA") && publicKeySize !== undefined && publicKeySize < 2048) findings.push({ severity: "warning", message: `RSA public key is ${publicKeySize} bits; 2048 bits or larger is recommended.`, rfc: "NIST SP 800-131A" });
   for (const ext of extensions) {
     if (ext.oid === "unknown") findings.push({ severity: "info", message: `Unrecognized extension: ${ext.name}.`, rfc: "RFC 5280 §4.2" });
+    if (ext.critical && ext.name === ext.oid) findings.push({ severity: "warning", message: `Critical extension ${ext.oid} is not decoded by name; relying parties must understand it.`, rfc: "RFC 5280 §4.2" });
   }
   return findings;
+}
+
+function hasServerAuth(extendedKeyUsage: string[]): boolean {
+  return extendedKeyUsage.includes("serverAuth") || extendedKeyUsage.includes("TLS Web Server Authentication");
+}
+
+function addChainFindings(certs: CertificateInfo[]): void {
+  if (certs.length < 2) return;
+  for (let i = 0; i < certs.length - 1; i++) {
+    const child = certs[i];
+    const issuer = certs[i + 1];
+    if (!samePrincipal(child.issuer, issuer.subject)) {
+      child.findings.push({ severity: "warning", message: "Next certificate subject does not match this certificate issuer.", rfc: "RFC 5280 §6" });
+    }
+    if (!issuer.isCA) {
+      child.findings.push({ severity: "error", message: "Issuer certificate is not marked as a CA.", rfc: "RFC 5280 §4.2.1.9, §6" });
+    }
+    if (!issuer.keyUsage.includes("keyCertSign")) {
+      child.findings.push({ severity: "warning", message: "Issuer certificate lacks keyCertSign key usage.", rfc: "RFC 5280 §4.2.1.3, §6" });
+    }
+    if (child.validity.notBefore < issuer.validity.notBefore || child.validity.notAfter > issuer.validity.notAfter) {
+      child.findings.push({ severity: "warning", message: "Certificate validity is not fully nested within issuer validity.", rfc: "RFC 5280 §6" });
+    }
+  }
+  const caCountBelowRoot = certs.slice(1, -1).filter(cert => cert.isCA).length;
+  const root = certs[certs.length - 1];
+  if (root.basicConstraints?.pathLenConstraint !== undefined && caCountBelowRoot > root.basicConstraints.pathLenConstraint) {
+    root.findings.push({ severity: "error", message: `Path length constraint ${root.basicConstraints.pathLenConstraint} is exceeded by ${caCountBelowRoot} subordinate CA certificate(s).`, rfc: "RFC 5280 §4.2.1.9, §6" });
+  }
+}
+
+function samePrincipal(a: CertificateSubject, b: CertificateSubject): boolean {
+  return JSON.stringify(normalizeSubject(a)) === JSON.stringify(normalizeSubject(b));
+}
+
+function normalizeSubject(subject: CertificateSubject): Record<string, string | string[]> {
+  return {
+    commonName: subject.commonName ?? "",
+    organization: subject.organization ?? [],
+    organizationalUnit: subject.organizationalUnit ?? [],
+    country: subject.country ?? [],
+    state: subject.state ?? [],
+    locality: subject.locality ?? [],
+    emailAddress: subject.emailAddress ?? [],
+  };
 }
 
 function safeCA(x509: crypto.X509Certificate): boolean {
