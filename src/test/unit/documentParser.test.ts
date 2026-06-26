@@ -11,6 +11,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { parseDocument } from "../../parsers/documentParser";
+import { EncryptedPrivateKeyPasswordError, parseKeyFile } from "../../parsers/keyParser";
 import { CertificateInfo, getCertificateStatus } from "../../models/certificate";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
@@ -231,6 +232,20 @@ suite("parseDocument — usuario abre llaves", () => {
     const doc = parseDocument(Buffer.from(pem), "mldsa.pub");
     assert.strictEqual(doc.type, "keys");
     assert.strictEqual(doc.items[0].algorithm, "ML-DSA-65");
+  });
+
+  test("encrypted private keys require and accept a password", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const encrypted = privateKey.export({
+      type: "pkcs8",
+      format: "pem",
+      cipher: "aes-256-cbc",
+      passphrase: "secret",
+    });
+    assert.throws(() => parseKeyFile(Buffer.from(encrypted), "encrypted.key"), EncryptedPrivateKeyPasswordError);
+    const keys = parseKeyFile(Buffer.from(encrypted), "encrypted.key", "secret");
+    assert.strictEqual(keys[0].kind, "private");
+    assert.strictEqual(keys[0].algorithm, "RSA");
   });
 });
 

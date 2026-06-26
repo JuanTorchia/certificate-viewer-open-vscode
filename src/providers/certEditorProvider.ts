@@ -5,6 +5,7 @@ import { parseDocument } from "../parsers/documentParser";
 import { parsePkcs12, Pkcs12PasswordError } from "../parsers/pkcs12Parser";
 import { buildWebviewHtml } from "../views/certWebview";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
+import { EncryptedPrivateKeyPasswordError, isEncryptedPrivateKey, parseKeyFile } from "../parsers/keyParser";
 
 export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = "certview.certEditor";
@@ -79,7 +80,34 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
       return this.parsePkcs12File(raw, uri.fsPath);
     }
 
+    if (isEncryptedPrivateKey(raw)) {
+      return this.parseEncryptedKeyFile(raw, uri.fsPath);
+    }
+
     return parseDocument(raw, uri.fsPath);
+  }
+
+  private async parseEncryptedKeyFile(raw: Uint8Array, fsPath: string): Promise<ParsedDocument> {
+    const password = await vscode.window.showInputBox({
+      prompt: `Password for ${path.basename(fsPath)}`,
+      placeHolder: "Enter private key password",
+      password: true,
+      ignoreFocusOut: true,
+    });
+
+    if (password === undefined) {
+      return { type: "error", message: "Private key password required", detail: "No password was provided." };
+    }
+
+    try {
+      return { type: "keys", items: parseKeyFile(raw, fsPath, password) };
+    } catch (e) {
+      if (e instanceof EncryptedPrivateKeyPasswordError) {
+        return { type: "error", message: "Private key password required", detail: "No password was provided." };
+      }
+      const message = e instanceof Error ? e.message : String(e);
+      return { type: "error", message: "Invalid private key password", detail: message };
+    }
   }
 
   private async parsePkcs12File(raw: Uint8Array, fsPath: string): Promise<ParsedDocument> {

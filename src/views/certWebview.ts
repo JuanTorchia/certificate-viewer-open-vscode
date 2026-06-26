@@ -160,6 +160,7 @@ function serializeCert(cert: CertificateInfo, warningDays: number): Record<strin
     extensions: cert.extensions,
     publicKeyPem: cert.publicKeyPem,
     findings: cert.findings,
+    lintReport: JSON.stringify({ subject: cert.subject.commonName, serial: cert.serialNumber, findings: cert.findings }, null, 2),
   };
 }
 

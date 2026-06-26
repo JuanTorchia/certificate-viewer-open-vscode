@@ -55,13 +55,13 @@
     return '<details open><summary' + hint(HELP[title]) + '>' + esc(title) + '</summary><div class="section-body">' + content + '</div></details>';
   }
 
-  function validationBanner(findings) {
+  function validationBanner(findings, report) {
     if (!findings || !findings.length) {
-      return '<div class="banner ok" title="Basic CertView lint checks passed; this is not a full compliance validation.">No lint findings</div>';
+      return '<div class="banner ok" title="Basic CertView lint checks passed; this is not a full compliance validation.">No lint findings' + (report ? '<button class="copy-btn" data-v="' + esc(report) + '">Copy lint report</button>' : '') + '</div>';
     }
     var counts = findings.reduce(function (acc, f) { acc[f.severity] = (acc[f.severity] || 0) + 1; return acc; }, {});
     var cls = findings.some(function (f) { return f.severity === 'error'; }) ? 'err' : findings.some(function (f) { return f.severity === 'warning'; }) ? 'warn' : 'info';
-    return '<div class="banner ' + cls + '"><div>Lint findings: ' + (counts.error || 0) + ' errors / ' + (counts.warning || 0) + ' warnings / ' + (counts.info || 0) + ' info</div><ul>' +
+    return '<div class="banner ' + cls + '"><div>Lint findings: ' + (counts.error || 0) + ' errors / ' + (counts.warning || 0) + ' warnings / ' + (counts.info || 0) + ' info' + (report ? '<button class="copy-btn" data-v="' + esc(report) + '">Copy lint report</button>' : '') + '</div><ul>' +
       findings.map(function (f) { return '<li data-severity="' + esc(f.severity) + '"><strong>' + esc(f.severity.toUpperCase()) + '</strong>: ' + esc(f.message) + (f.rfc ? ' (' + esc(f.rfc) + ')' : '') + '</li>'; }).join('') +
       '</ul></div>';
   }
@@ -99,7 +99,7 @@
     }
 
     function renderCert(c) {
-      return validationBanner(c.findings)
+      return validationBanner(c.findings, c.lintReport)
         + banner(c)
         + section('Subject', nameFields(c.subject))
         + section('Issuer', nameFields(c.issuer))

@@ -52,7 +52,7 @@ CRL files open with issuer and update timestamps — no more decoding DER by han
 | `.crl` | Certificate Revocation List |
 | `.csr` | Certificate Signing Request (PKCS#10) |
 | `.p12` `.pfx` | PKCS#12 keystore — password prompt if protected |
-| `.key` `.pub` | PEM or DER public keys and unencrypted private keys, including runtime-supported post-quantum keys such as ML-DSA |
+| `.key` `.pub` | PEM or DER public keys and private keys, including encrypted PKCS#8 private keys and runtime-supported post-quantum keys such as ML-DSA |
 | `.jwk` | JSON Web Key public keys |
 
 ## Usage
@@ -61,6 +61,7 @@ CRL files open with issuer and update timestamps — no more decoding DER by han
 - **Right-click** any supported file → *X509 Certificate Utility: Open*
 - **Certificates panel** in the Explorer sidebar lists all cert files in the workspace
 - **Hover** sections or fields in the certificate view to see RFC context
+- **Copy lint report** from the validation banner for JSON output suitable for issue comments or reviews
 
 ## Settings
 
