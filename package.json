@@ -161,12 +161,12 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm bundle",
+    "vscode:prepublish": "npm run bundle",
     "bundle": "node esbuild.js && node -e \"require('fs').cpSync('src/test/fixtures','out/test/fixtures',{recursive:true,force:true})\"",
     "compile": "tsc -p ./ && node -e \"require('fs').cpSync('src/test/fixtures','out/test/fixtures',{recursive:true,force:true})\"",
     "watch": "tsc -watch -p ./",
-    "pretest": "pnpm compile",
-    "test:unit": "pnpm compile && node ./out/test/unit/index.js",
+    "pretest": "npm run compile",
+    "test:unit": "npm run compile && node ./out/test/unit/index.js",
     "test": "node ./out/test/runTest.js",
     "fixtures:local": "node scripts/generate-local-fixtures.js",
     "lint": "eslint src --ext ts",

@@ -248,6 +248,35 @@ suite("parseDocument — usuario abre llaves", () => {
     assert.ok(doc.items[0].note?.includes("does not prompt"));
     assert.strictEqual(doc.items[0].publicKeyPem, undefined);
   });
+
+  test("DER SPKI public key is rendered as a key document", () => {
+    const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = publicKey.export({ type: "spki", format: "der" });
+    const doc = parseDocument(der, "public.pub");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "public");
+    assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].format, "DER");
+  });
+
+  test("DER PKCS#8 private key is rendered as a key document", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = privateKey.export({ type: "pkcs8", format: "der" });
+    const doc = parseDocument(der, "private.key");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "private");
+    assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].format, "DER");
+  });
+
+  test("DER encrypted PKCS#8 private key is detected without decryption", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = privateKey.export({ type: "pkcs8", format: "der", cipher: "aes-256-cbc", passphrase: "secret" });
+    const doc = parseDocument(der, "encrypted.key");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].encrypted, true);
+    assert.strictEqual(doc.items[0].publicKeyPem, undefined);
+  });
 });
 
 // ── Escenario: configuración warningDays afecta lo que ve el usuario ──────────

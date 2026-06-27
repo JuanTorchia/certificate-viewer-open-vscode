@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import * as forge from "node-forge";
 
 export interface KeyInfo {
   kind: "public" | "private";
@@ -18,11 +19,12 @@ export function isEncryptedPrivateKey(raw: Uint8Array): boolean {
 
 export function parseKeyFile(raw: Uint8Array, filename: string): KeyInfo[] {
   const text = Buffer.from(raw).toString("utf8");
-  if (isEncryptedPrivateKey(raw)) {
+  const format = keyFileFormat(raw, filename, text);
+  if (isEncryptedPrivateKey(raw) || isEncryptedPkcs8Der(raw)) {
     return [{
       kind: "private",
       algorithm: "Encrypted private key",
-      format: filename.toLowerCase().endsWith(".der") ? "DER" : "PEM",
+      format,
       encrypted: true,
       note: "CertView does not prompt for private key passwords or decrypt encrypted private keys.",
     }];
@@ -33,7 +35,28 @@ export function parseKeyFile(raw: Uint8Array, filename: string): KeyInfo[] {
   const isPrivate = /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/.test(text);
   const isPublic = /-----BEGIN (?:[A-Z ]+ )?PUBLIC KEY-----/.test(text);
   const key = isPrivate ? crypto.createPrivateKey(text) : isPublic ? crypto.createPublicKey(text) : parseDerKey(raw, filename);
-  return [keyInfoFromObject(key, filename.toLowerCase().endsWith(".der") ? "DER" : "PEM")];
+  return [keyInfoFromObject(key, format)];
+}
+
+function keyFileFormat(raw: Uint8Array, filename: string, text: string): string {
+  if (filename.toLowerCase().endsWith(".jwk") || looksLikeJwk(text)) return "JWK";
+  if (/-----BEGIN [^-]+-----/.test(text)) return "PEM";
+  return "DER";
+}
+
+function isEncryptedPkcs8Der(raw: Uint8Array): boolean {
+  try {
+    const root = forge.asn1.fromDer(Buffer.from(raw).toString("binary"));
+    if (!Array.isArray(root.value) || root.value.length < 2) return false;
+    const algorithmIdentifier = root.value[0] as forge.asn1.Asn1;
+    const encryptedData = root.value[1] as forge.asn1.Asn1;
+    return root.type === forge.asn1.Type.SEQUENCE &&
+      Array.isArray(algorithmIdentifier.value) &&
+      algorithmIdentifier.type === forge.asn1.Type.SEQUENCE &&
+      encryptedData.type === forge.asn1.Type.OCTETSTRING;
+  } catch {
+    return false;
+  }
 }
 
 function keyInfoFromObject(key: crypto.KeyObject, format: string): KeyInfo {

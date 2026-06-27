@@ -16,6 +16,10 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
   const ext = path.extname(filename).toLowerCase();
 
   try {
+    if ([".key", ".pub", ".jwk"].includes(ext)) {
+      return { type: "keys", items: parseKeyFile(raw, filename) };
+    }
+
     // PKCS7 DER binary (.p7b/.p7c/.p7) — must check before generic DER path
     if ([".p7b", ".p7c", ".p7"].includes(ext) && isDerBuffer(raw)) {
       const pems = extractCertsFromPkcs7(raw);
@@ -25,15 +29,11 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
     if (ext !== ".der" && !isDerBuffer(raw)) {
       const text = Buffer.from(raw).toString("utf-8").replace(/^\uFEFF/, ""); // strip BOM
 
-      if (ext === ".jwk") {
-        return { type: "keys", items: parseKeyFile(raw, filename) };
-      }
-
       if (!isPemContent(text)) {
         return parseDer(raw);
       }
 
-      if (/-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/.test(text) || /-----BEGIN (?:[A-Z ]+ )?PUBLIC KEY-----/.test(text) || ext === ".jwk") {
+      if (/-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/.test(text) || /-----BEGIN (?:[A-Z ]+ )?PUBLIC KEY-----/.test(text)) {
         return { type: "keys", items: parseKeyFile(raw, filename) };
       }
 

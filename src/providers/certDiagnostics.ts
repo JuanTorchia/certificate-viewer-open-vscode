@@ -5,20 +5,26 @@ import { ParsedDocument } from "../models/parsedDocument";
 import { parseDocument } from "../parsers/documentParser";
 
 const SUPPORTED_EXTENSIONS = new Set([
-  ".pem", ".cer", ".crt", ".der", ".crl", ".p7b", ".p7c", ".p7", ".csr", ".key", ".pub", ".jwk",
+  ".pem", ".cer", ".crt", ".der", ".crl", ".p7b", ".p7c", ".p7", ".csr", ".p12", ".pfx", ".key", ".pub", ".jwk",
 ]);
+const LIVE_DIAGNOSTICS_MAX_BYTES = 1024 * 1024;
+const DIAGNOSTIC_DEBOUNCE_MS = 500;
 
 export class CertDiagnosticsProvider implements vscode.Disposable {
   private readonly collection = vscode.languages.createDiagnosticCollection("certview");
   private readonly disposables: vscode.Disposable[] = [];
+  private readonly timers = new Map<string, NodeJS.Timeout>();
 
   constructor() {
     this.disposables.push(
       this.collection,
       vscode.workspace.onDidOpenTextDocument(doc => { void this.updateTextDocument(doc); }),
       vscode.workspace.onDidSaveTextDocument(doc => { void this.updateTextDocument(doc); }),
-      vscode.workspace.onDidChangeTextDocument(event => { void this.updateTextDocument(event.document); }),
-      vscode.workspace.onDidCloseTextDocument(doc => this.collection.delete(doc.uri))
+      vscode.workspace.onDidChangeTextDocument(event => this.scheduleTextDocumentUpdate(event.document)),
+      vscode.workspace.onDidCloseTextDocument(doc => {
+        this.clearTimer(doc.uri);
+        this.collection.delete(doc.uri);
+      })
     );
 
     for (const doc of vscode.workspace.textDocuments) {
@@ -37,18 +43,54 @@ export class CertDiagnosticsProvider implements vscode.Disposable {
   }
 
   dispose(): void {
+    for (const timer of this.timers.values()) clearTimeout(timer);
+    this.timers.clear();
     for (const disposable of this.disposables) disposable.dispose();
   }
 
-  private async updateTextDocument(doc: vscode.TextDocument): Promise<void> {
+  setParsedDiagnostics(uri: vscode.Uri, parsed: ParsedDocument): void {
+    if (!isSupportedUri(uri)) return;
+    this.setDiagnostics(uri, parsed);
+  }
+
+  private scheduleTextDocumentUpdate(doc: vscode.TextDocument): void {
+    if (!isSupportedUri(doc.uri) || doc.isUntitled) return;
+    const key = doc.uri.toString();
+    this.clearTimer(doc.uri);
+    const version = doc.version;
+    const timer = setTimeout(() => {
+      this.timers.delete(key);
+      if (doc.version !== version) return;
+      void this.updateTextDocument(doc, version);
+    }, DIAGNOSTIC_DEBOUNCE_MS);
+    this.timers.set(key, timer);
+  }
+
+  private async updateTextDocument(doc: vscode.TextDocument, version?: number): Promise<void> {
     if (!isSupportedUri(doc.uri)) return;
     if (doc.isUntitled) return;
     try {
-      const raw = Buffer.from(doc.getText(), "utf8");
+      if (version !== undefined && doc.version !== version) return;
+      const text = doc.getText();
+      if (Buffer.byteLength(text, "utf8") > LIVE_DIAGNOSTICS_MAX_BYTES) {
+        const diagnostic = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1), "CertView live diagnostics skipped for files larger than 1 MiB; open the certificate viewer to parse with full limits.", vscode.DiagnosticSeverity.Information);
+        diagnostic.source = "CertView";
+        this.collection.set(doc.uri, [diagnostic]);
+        return;
+      }
+      const raw = Buffer.from(text, "utf8");
+      if (version !== undefined && doc.version !== version) return;
       this.setDiagnostics(doc.uri, parseDocument(raw, doc.uri.fsPath));
     } catch (error) {
       this.collection.set(doc.uri, [diagnosticFromError(error)]);
     }
+  }
+
+  private clearTimer(uri: vscode.Uri): void {
+    const key = uri.toString();
+    const existing = this.timers.get(key);
+    if (existing) clearTimeout(existing);
+    this.timers.delete(key);
   }
 
   private setDiagnostics(uri: vscode.Uri, parsed: ParsedDocument): void {

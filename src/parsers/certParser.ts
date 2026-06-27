@@ -118,7 +118,7 @@ function parseSinglePem(pem: string): CertificateInfo {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const x509any = x509 as any;
   const keyUsage = parseKeyUsage(parsedExtensions) ?? normalizeKeyUsage(x509any.keyUsage);
-  const extendedKeyUsage = forgeCert ? parseExtendedKeyUsage(forgeCert, x509any.extendedKeyUsage ?? []) : parseExtendedKeyUsage(undefined, x509any.extendedKeyUsage ?? []);
+  const extendedKeyUsage = parseExtendedKeyUsage(parsedExtensions, x509any.extendedKeyUsage ?? []);
   const { algorithm, keySize } = getPublicKeyInfo(x509.publicKey);
   const extensions = buildExtensions(x509, parsedExtensions);
   const basicConstraints = parseBasicConstraints(parsedExtensions);
@@ -172,8 +172,8 @@ function normalizeKeyUsage(raw: string[] | string | undefined): string[] {
   return raw.split(/,\s*/).map(s => s.trim()).filter(Boolean);
 }
 
-function parseExtendedKeyUsage(cert: forge.pki.Certificate | undefined, nodeEkus: string[]): string[] {
-  const ext = cert?.extensions.find(e => (e as { id?: string }).id === "2.5.29.37" || e.name === "extKeyUsage") as Record<string, unknown> | undefined;
+function parseExtendedKeyUsage(extensions: ParsedExtension[], nodeEkus: string[]): string[] {
+  const ext = extensions.find(e => e.id === "2.5.29.37" || e.name === "extKeyUsage") as Record<string, unknown> | undefined;
   if (ext) {
     const names = Object.entries(ext)
       .filter(([key, value]) => value === true && !["critical"].includes(key))
@@ -586,6 +586,7 @@ function enrichParsedExtension(ext: ParsedExtension): void {
   if (!inner) return;
   if (ext.id === "2.5.29.19") enrichBasicConstraints(ext, inner);
   if (ext.id === "2.5.29.15") enrichKeyUsage(ext, inner);
+  if (ext.id === "2.5.29.37") enrichExtendedKeyUsage(ext, inner);
   if (ext.id === "2.5.29.17" || ext.id === "2.5.29.18") enrichAltNames(ext, inner);
 }
 
@@ -609,6 +610,16 @@ function enrichKeyUsage(ext: ParsedExtension, inner: forge.asn1.Asn1): void {
   for (const [name, bit] of flags) {
     const byte = bytes[Math.floor(bit / 8)] ?? 0;
     ext[name] = Boolean(byte & (0x80 >> (bit % 8)));
+  }
+}
+
+function enrichExtendedKeyUsage(ext: ParsedExtension, inner: forge.asn1.Asn1): void {
+  ext.name = "extKeyUsage";
+  if (!Array.isArray(inner.value)) return;
+  for (const node of inner.value as forge.asn1.Asn1[]) {
+    if (node.type === forge.asn1.Type.OID && typeof node.value === "string") {
+      ext[forge.asn1.derToOid(node.value)] = true;
+    }
   }
 }
 

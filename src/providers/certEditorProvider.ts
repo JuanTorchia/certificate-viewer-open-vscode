@@ -42,7 +42,7 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     const warningDays: number = config.get("warningDaysBeforeExpiry", 30);
 
     const parsed = await this.parseFile(document.uri);
-    await this.diagnosticsProvider?.updateUri(document.uri);
+    this.diagnosticsProvider?.setParsedDiagnostics(document.uri, parsed);
     webviewPanel.webview.html = buildWebviewHtml(
       webviewPanel.webview,
       this.context.extensionUri,
