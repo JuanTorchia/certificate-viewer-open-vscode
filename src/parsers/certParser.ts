@@ -705,10 +705,14 @@ function addChainFindings(certs: CertificateInfo[]): void {
       child.findings.push({ severity: "warning", message: "Certificate validity is not fully nested within issuer validity.", rfc: "RFC 5280 §6" });
     }
   }
-  const caCountBelowRoot = certs.slice(1, -1).filter(cert => cert.isCA).length;
-  const root = certs[certs.length - 1];
-  if (root.basicConstraints?.pathLenConstraint !== undefined && caCountBelowRoot > root.basicConstraints.pathLenConstraint) {
-    root.findings.push({ severity: "error", message: `Path length constraint ${root.basicConstraints.pathLenConstraint} is exceeded by ${caCountBelowRoot} subordinate CA certificate(s).`, rfc: "RFC 5280 §4.2.1.9, §6" });
+  for (let i = 1; i < certs.length; i++) {
+    const issuer = certs[i];
+    const pathLenConstraint = issuer.basicConstraints?.pathLenConstraint;
+    if (pathLenConstraint === undefined) continue;
+    const subordinateCaCount = certs.slice(0, i).filter(cert => cert.isCA).length;
+    if (subordinateCaCount > pathLenConstraint) {
+      issuer.findings.push({ severity: "error", message: `Path length constraint ${pathLenConstraint} is exceeded by ${subordinateCaCount} subordinate CA certificate(s).`, rfc: "RFC 5280 §4.2.1.9, §6" });
+    }
   }
 }
 

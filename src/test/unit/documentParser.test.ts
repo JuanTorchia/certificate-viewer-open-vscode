@@ -199,7 +199,7 @@ suite("parseDocument — usuario abre archivo incorrecto", () => {
     assert.strictEqual(doc.type, "error");
   });
 
-  test("PEM con bloque PRIVATE KEY en vez de CERTIFICATE → type=error", () => {
+  test("invalid PEM private key block → type=error", () => {
     const privateKey = Buffer.from(
       "-----BEGIN PRIVATE KEY-----\naGVsbG8=\n-----END PRIVATE KEY-----"
     );
@@ -259,6 +259,15 @@ suite("parseDocument — usuario abre llaves", () => {
     assert.strictEqual(doc.items[0].format, "DER");
   });
 
+  test("DER SPKI public key with .der extension falls back to key parsing", () => {
+    const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = publicKey.export({ type: "spki", format: "der" });
+    const doc = parseDocument(der, "public.der");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "public");
+    assert.strictEqual(doc.items[0].format, "DER");
+  });
+
   test("DER PKCS#8 private key is rendered as a key document", () => {
     const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
     const der = privateKey.export({ type: "pkcs8", format: "der" });
@@ -266,6 +275,15 @@ suite("parseDocument — usuario abre llaves", () => {
     assert.strictEqual(doc.type, "keys");
     assert.strictEqual(doc.items[0].kind, "private");
     assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].format, "DER");
+  });
+
+  test("DER PKCS#8 private key with .der extension falls back to key parsing", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = privateKey.export({ type: "pkcs8", format: "der" });
+    const doc = parseDocument(der, "private.der");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "private");
     assert.strictEqual(doc.items[0].format, "DER");
   });
 

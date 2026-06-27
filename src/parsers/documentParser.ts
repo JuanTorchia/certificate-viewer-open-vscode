@@ -30,7 +30,7 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
       const text = Buffer.from(raw).toString("utf-8").replace(/^\uFEFF/, ""); // strip BOM
 
       if (!isPemContent(text)) {
-        return parseDer(raw);
+        return parseDer(raw, filename);
       }
 
       if (/-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/.test(text) || /-----BEGIN (?:[A-Z ]+ )?PUBLIC KEY-----/.test(text)) {
@@ -55,7 +55,7 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
       return { type: "certificates", items: parseCertificateFile(text) };
     }
 
-    return parseDer(raw);
+    return parseDer(raw, filename);
 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -68,9 +68,19 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
   }
 }
 
-function parseDer(raw: Uint8Array): ParsedDocument {
+function parseDer(raw: Uint8Array, filename: string): ParsedDocument {
   assertWithinInputLimit(raw.byteLength, "DER file");
-  return { type: "certificates", items: parseCertificateFile(raw) };
+  try {
+    return { type: "certificates", items: parseCertificateFile(raw) };
+  } catch (certificateError) {
+    try {
+      return { type: "keys", items: parseKeyFile(raw, filename) };
+    } catch (keyError) {
+      const certMessage = certificateError instanceof Error ? certificateError.message : String(certificateError);
+      const keyMessage = keyError instanceof Error ? keyError.message : String(keyError);
+      throw new Error(`DER data is neither a supported certificate nor key. Certificate parse failed: ${certMessage}. Key parse failed: ${keyMessage}`);
+    }
+  }
 }
 
 function parseCrlPem(text: string): ParsedDocument {

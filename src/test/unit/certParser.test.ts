@@ -1,11 +1,47 @@
 import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
+import * as forge from "node-forge";
 import { parseCertificateFile, parseX509Name } from "../../parsers/certParser";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
 const readText = (f: string): string => fs.readFileSync(path.join(FIXTURES, f), "utf-8");
 const readBin = (f: string): Buffer => fs.readFileSync(path.join(FIXTURES, f));
+
+interface TestCert {
+  cert: forge.pki.Certificate;
+  key: forge.pki.rsa.PrivateKey;
+  pem: string;
+}
+
+function makeTestCert(options: { commonName: string; isCA: boolean; pathLenConstraint?: number; issuer?: TestCert }): TestCert {
+  const keys = forge.pki.rsa.generateKeyPair(1024);
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = keys.publicKey;
+  cert.serialNumber = cryptoSafeSerial(options.commonName);
+  cert.validity.notBefore = new Date(Date.now() - 86400000);
+  cert.validity.notAfter = new Date(Date.now() + 86400000);
+  const attrs = [{ name: "commonName", value: options.commonName }];
+  cert.setSubject(attrs);
+  cert.setIssuer(options.issuer ? options.issuer.cert.subject.attributes : attrs);
+  cert.setExtensions([
+    {
+      name: "basicConstraints",
+      cA: options.isCA,
+      critical: options.isCA,
+      ...(options.pathLenConstraint !== undefined ? { pathLenConstraint: options.pathLenConstraint } : {}),
+    },
+    options.isCA
+      ? { name: "keyUsage", keyCertSign: true, cRLSign: true, critical: true }
+      : { name: "keyUsage", digitalSignature: true, critical: true },
+  ]);
+  cert.sign(options.issuer?.key ?? keys.privateKey, forge.md.sha256.create());
+  return { cert, key: keys.privateKey, pem: forge.pki.certificateToPem(cert) };
+}
+
+function cryptoSafeSerial(seed: string): string {
+  return Buffer.from(seed).toString("hex").slice(0, 32) || "01";
+}
 
 suite("certParser — error cases", () => {
   test("throws on empty string", () => {
@@ -154,6 +190,18 @@ suite("certParser — chain PEM (2 certs)", () => {
 
   test("leaf issuer matches CA subject", () => {
     assert.strictEqual(certs[0].issuer.commonName, certs[1].subject.commonName);
+  });
+});
+
+suite("certParser — path length constraints", () => {
+  test("flags pathLen violations on intermediate CAs", () => {
+    const root = makeTestCert({ commonName: "Root CA", isCA: true, pathLenConstraint: 2 });
+    const intermediate = makeTestCert({ commonName: "Intermediate pathLen0", isCA: true, pathLenConstraint: 0, issuer: root });
+    const subCa = makeTestCert({ commonName: "Subordinate CA", isCA: true, pathLenConstraint: 0, issuer: intermediate });
+    const leaf = makeTestCert({ commonName: "Leaf", isCA: false, issuer: subCa });
+    const certs = parseCertificateFile([leaf, subCa, intermediate, root].map(item => item.pem).join("\n"));
+    const parsedIntermediate = certs.find(cert => cert.subject.commonName === "Intermediate pathLen0");
+    assert.ok(parsedIntermediate?.findings.some(finding => finding.severity === "error" && finding.message.includes("Path length constraint 0 is exceeded by 1 subordinate CA")));
   });
 });
 
