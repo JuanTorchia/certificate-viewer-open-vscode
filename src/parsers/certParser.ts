@@ -18,6 +18,7 @@ const EXTENDED_KEY_USAGE_OID: Record<string, string> = {
   "1.3.6.1.5.5.7.3.8": "Time Stamping",
   "1.3.6.1.5.5.7.3.9": "OCSP Signing",
   "1.3.6.1.5.5.7.3.21": "SSH Client",
+  "2.5.29.37.0": "Any Extended Key Usage",
 };
 
 const SIGNATURE_ALGORITHM_OID: Record<string, string> = {
@@ -52,6 +53,7 @@ const OID_NAMES: Record<string, string> = {
   "2.5.29.32": "Certificate Policies",
   "2.5.29.35": "Authority Key Identifier",
   "2.5.29.37": "Extended Key Usage",
+  "2.5.29.46": "Freshest CRL",
   "1.3.6.1.5.5.7.1.1": "Authority Information Access",
   "1.3.6.1.5.5.7.1.24": "TLS Feature",
 };
@@ -666,16 +668,45 @@ function validateCertificate(
 ): CertificateFinding[] {
   const findings: CertificateFinding[] = [];
   const now = Date.now();
+  const serialBytes = Buffer.from(x509.serialNumber.length % 2 ? `0${x509.serialNumber}` : x509.serialNumber, "hex");
+  const subjectEmpty = Object.values(subject).every(value => value === undefined || (Array.isArray(value) && value.length === 0));
+  const sanExtension = extensionByOid(extensions, "2.5.29.17");
+  const basicConstraintsExtension = extensionByOid(extensions, "2.5.29.19");
+  const nameConstraintsExtension = extensionByOid(extensions, "2.5.29.30");
+  const aiaExtension = extensionByOid(extensions, "1.3.6.1.5.5.7.1.1");
+  const crlDistributionPointsExtension = extensionByOid(extensions, "2.5.29.31");
+  const freshestCrlExtension = extensionByOid(extensions, "2.5.29.46");
+  const duplicateOids = duplicateExtensionOids(extensions);
+
+  if (!x509.serialNumber || serialBytes.length === 0) findings.push({ severity: "error", message: "Certificate serial number is empty.", rfc: "RFC 5280 §4.1.2.2" });
+  if (serialBytes.length > 20) findings.push({ severity: "warning", message: `Certificate serial number is ${serialBytes.length} octets; conforming CAs must not use serial numbers longer than 20 octets.`, rfc: "RFC 5280 §4.1.2.2" });
   if (new Date(x509.validTo).getTime() < now) findings.push({ severity: "error", message: "Certificate is expired.", rfc: "RFC 5280 §4.1.2.5" });
   if (new Date(x509.validFrom).getTime() > now) findings.push({ severity: "error", message: "Certificate is not yet valid.", rfc: "RFC 5280 §4.1.2.5" });
+  if (new Date(x509.validFrom).getTime() > new Date(x509.validTo).getTime()) findings.push({ severity: "error", message: "Certificate notBefore is after notAfter.", rfc: "RFC 5280 §4.1.2.5" });
   if (!subject.commonName && !x509.subjectAltName) findings.push({ severity: "warning", message: "Certificate has neither subject CN nor SAN.", rfc: "RFC 5280 §4.1.2.6, §4.2.1.6" });
+  if (subjectEmpty && !sanExtension) findings.push({ severity: "error", message: "Certificate subject is empty but subjectAltName is absent.", rfc: "RFC 5280 §4.1.2.6, §4.2.1.6" });
+  if (subjectEmpty && sanExtension && !sanExtension.critical) findings.push({ severity: "error", message: "subjectAltName must be critical when the subject distinguished name is empty.", rfc: "RFC 5280 §4.2.1.6" });
+  if (!subjectEmpty && sanExtension?.critical) findings.push({ severity: "warning", message: "subjectAltName should be noncritical when the subject distinguished name is present.", rfc: "RFC 5280 §4.2.1.6" });
   if (safeCA(x509) && !basicConstraints?.ca) findings.push({ severity: "error", message: "Certificate is treated as a CA but Basic Constraints CA=true was not decoded.", rfc: "RFC 5280 §4.2.1.9" });
-  if (basicConstraints?.ca && !extensions.some(ext => ext.oid === "2.5.29.19" && ext.critical)) findings.push({ severity: "warning", message: "CA Basic Constraints should be marked critical.", rfc: "RFC 5280 §4.2.1.9" });
+  if (basicConstraints?.ca && !basicConstraintsExtension?.critical) findings.push({ severity: "warning", message: "CA Basic Constraints should be marked critical.", rfc: "RFC 5280 §4.2.1.9" });
+  if (basicConstraints && !basicConstraints.ca && basicConstraints.pathLenConstraint !== undefined) findings.push({ severity: "error", message: "Basic Constraints pathLenConstraint is present while CA=false.", rfc: "RFC 5280 §4.2.1.9" });
+  if (basicConstraints?.pathLenConstraint !== undefined && !keyUsage.includes("keyCertSign")) findings.push({ severity: "warning", message: "Basic Constraints pathLenConstraint is present but keyCertSign is not asserted.", rfc: "RFC 5280 §4.2.1.9" });
   if (basicConstraints?.ca && !keyUsage.includes("keyCertSign")) findings.push({ severity: "warning", message: "CA certificate lacks keyCertSign key usage.", rfc: "RFC 5280 §4.2.1.3, §4.2.1.9" });
   if (!basicConstraints?.ca && keyUsage.includes("keyCertSign")) findings.push({ severity: "warning", message: "End-entity certificate includes keyCertSign.", rfc: "RFC 5280 §4.2.1.3" });
+  if (keyUsage.includes("encipherOnly") && !keyUsage.includes("keyAgreement")) findings.push({ severity: "error", message: "encipherOnly is meaningful only when keyAgreement is asserted.", rfc: "RFC 5280 §4.2.1.3" });
+  if (keyUsage.includes("decipherOnly") && !keyUsage.includes("keyAgreement")) findings.push({ severity: "error", message: "decipherOnly is meaningful only when keyAgreement is asserted.", rfc: "RFC 5280 §4.2.1.3" });
+  if (extendedKeyUsage.includes("Any Extended Key Usage") && extendedKeyUsage.length > 1) findings.push({ severity: "warning", message: "anyExtendedKeyUsage appears with specific extended key usages.", rfc: "RFC 5280 §4.2.1.12" });
+  if (nameConstraintsExtension && !nameConstraintsExtension.critical) findings.push({ severity: "error", message: "Name Constraints must be marked critical.", rfc: "RFC 5280 §4.2.1.10" });
+  if (nameConstraintsExtension && !basicConstraints?.ca) findings.push({ severity: "warning", message: "Name Constraints is present on a certificate that is not marked as a CA.", rfc: "RFC 5280 §4.2.1.10" });
+  if (aiaExtension?.critical) findings.push({ severity: "error", message: "Authority Information Access must be noncritical.", rfc: "RFC 5280 §4.2.2.1" });
+  if (crlDistributionPointsExtension?.critical) findings.push({ severity: "warning", message: "CRL Distribution Points should be noncritical.", rfc: "RFC 5280 §4.2.1.13" });
+  if (freshestCrlExtension?.critical) findings.push({ severity: "error", message: "Freshest CRL must be noncritical.", rfc: "RFC 5280 §4.2.1.15" });
   if (hasServerAuth(extendedKeyUsage) && !x509.subjectAltName) findings.push({ severity: "warning", message: "TLS server certificate should include DNS/IP subjectAltName.", rfc: "RFC 6125 §6.4.4" });
   if (/MD5|SHA1|SHA-1/i.test(signatureAlgorithm)) findings.push({ severity: "warning", message: `Weak signature algorithm: ${signatureAlgorithm}.`, rfc: "RFC 5280 §4.1.1.2" });
   if (publicKeyAlgorithm.startsWith("RSA") && publicKeySize !== undefined && publicKeySize < 2048) findings.push({ severity: "warning", message: `RSA public key is ${publicKeySize} bits; 2048 bits or larger is recommended.`, rfc: "NIST SP 800-131A" });
+  for (const oid of duplicateOids) {
+    findings.push({ severity: "error", message: `Duplicate extension OID ${oid}.`, rfc: "RFC 5280 §4.2" });
+  }
   for (const ext of extensions) {
     if (ext.oid === "unknown") findings.push({ severity: "info", message: `Unrecognized extension: ${ext.name}.`, rfc: "RFC 5280 §4.2" });
     if (ext.critical && ext.name === ext.oid) findings.push({ severity: "warning", message: `Critical extension ${ext.oid} is not decoded by name; relying parties must understand it.`, rfc: "RFC 5280 §4.2" });
@@ -685,6 +716,16 @@ function validateCertificate(
 
 function hasServerAuth(extendedKeyUsage: string[]): boolean {
   return extendedKeyUsage.includes("serverAuth") || extendedKeyUsage.includes("TLS Web Server Authentication");
+}
+
+function extensionByOid(extensions: CertificateExtension[], oid: string): CertificateExtension | undefined {
+  return extensions.find(ext => ext.oid === oid);
+}
+
+function duplicateExtensionOids(extensions: CertificateExtension[]): string[] {
+  const counts = new Map<string, number>();
+  for (const ext of extensions) counts.set(ext.oid, (counts.get(ext.oid) ?? 0) + 1);
+  return Array.from(counts.entries()).filter(([oid, count]) => oid !== "unknown" && count > 1).map(([oid]) => oid);
 }
 
 function addChainFindings(certs: CertificateInfo[]): void {

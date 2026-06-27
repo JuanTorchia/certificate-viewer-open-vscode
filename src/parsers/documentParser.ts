@@ -33,6 +33,11 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
         return parseDer(raw, filename);
       }
 
+      const blocks = splitPemBlocks(text);
+      if (blocks.some(block => block.type === "CERTIFICATE")) {
+        return { type: "certificates", items: parseCertificateFile(text) };
+      }
+
       if (/-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/.test(text) || /-----BEGIN (?:[A-Z ]+ )?PUBLIC KEY-----/.test(text)) {
         return { type: "keys", items: parseKeyFile(raw, filename) };
       }
@@ -59,11 +64,10 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack ?? "" : "";
     return {
       type: "error",
       message: `Failed to parse ${path.basename(filename)}`,
-      detail: message + (stack ? `\n\n${stack.split("\n").slice(0, 5).join("\n")}` : ""),
+      detail: message,
     };
   }
 }

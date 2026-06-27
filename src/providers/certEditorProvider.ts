@@ -120,11 +120,10 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
   private pkcs12ErrorDoc(fsPath: string, e: unknown): ParsedDocument {
     const message = e instanceof Error ? e.message : String(e);
-    const stack = e instanceof Error ? e.stack ?? "" : "";
     return {
       type: "error",
       message: `Failed to parse ${path.basename(fsPath)}`,
-      detail: message + (stack ? `\n\n${stack.split("\n").slice(0, 5).join("\n")}` : ""),
+      detail: message,
     };
   }
 

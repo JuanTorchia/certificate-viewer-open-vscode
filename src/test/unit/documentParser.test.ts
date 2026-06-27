@@ -209,6 +209,14 @@ suite("parseDocument — usuario abre archivo incorrecto", () => {
 });
 
 suite("parseDocument — usuario abre llaves", () => {
+  test("mixed PEM certificate and private key prefers certificate parsing", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const keyPem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const doc = parseDocument(Buffer.concat([load("self-signed.pem"), Buffer.from("\n" + keyPem)]), "mixed.pem");
+    assert.strictEqual(doc.type, "certificates");
+    assert.strictEqual(doc.items[0].subject.commonName, "self-signed.example.com");
+  });
+
   test("JWK public key is rendered as a key document", () => {
     const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
     const jwk = publicKey.export({ format: "jwk" });

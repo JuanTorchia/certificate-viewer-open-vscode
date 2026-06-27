@@ -14,45 +14,98 @@
   }
 
   var HELP = {
-    'Subject': 'RFC 5280 section 4.1.2.6: entity associated with the public key.',
-    'Issuer': 'RFC 5280 section 4.1.2.4: CA that signed the certificate.',
-    'Validity': 'RFC 5280 section 4.1.2.5: notBefore/notAfter validity interval.',
-    'Subject Alternative Names': 'RFC 5280 section 4.2.1.6; RFC 6125 uses SAN for TLS identity checks.',
-    'Key Usage': 'RFC 5280 section 4.2.1.3: permitted cryptographic operations.',
-    'Extended Key Usage': 'RFC 5280 section 4.2.1.12: application-specific key purposes.',
-    'Extensions': 'RFC 5280 section 4.2: X.509 v3 extensions; critical extensions must be understood.',
-    'Basic Constraints': 'RFC 5280 section 4.2.1.9: CA flag and optional pathLenConstraint.',
-    'Name Constraints': 'RFC 5280 section 4.2.1.10: permitted/excluded subject name subtrees.',
+    'cert.subject': 'RFC 5280 §4.1.2.6: distinguished name of the entity associated with the public key.',
+    'cert.issuer': 'RFC 5280 §4.1.2.4: distinguished name of the certificate issuer.',
+    'cert.validity': 'RFC 5280 §4.1.2.5: notBefore/notAfter validity interval.',
+    'cert.san': 'RFC 5280 §4.2.1.6; RFC 6125 §6.4.4: subject alternative names and TLS identity guidance.',
+    'cert.keyUsage': 'RFC 5280 §4.2.1.3: permitted cryptographic operations.',
+    'cert.extKeyUsage': 'RFC 5280 §4.2.1.12: application-specific key purposes.',
+    'cert.extensions': 'RFC 5280 §4.2: X.509 v3 extensions; critical extensions must be understood.',
+    'cert.basicConstraints': 'RFC 5280 §4.2.1.9: CA flag and optional pathLenConstraint.',
+    'cert.nameConstraints': 'RFC 5280 §4.2.1.10: permitted/excluded subject name subtrees.',
     'Fingerprints': 'Digest over DER certificate bytes; useful for comparison, not identity validation.',
-    'Public Key': 'RFC 5280 section 4.1.2.7: subject public key algorithm and key material.'
+    'cert.details': 'RFC 5280 §4.1: TBSCertificate fields and signature metadata.',
+    'cert.publicKey': 'RFC 5280 §4.1.2.7: subject public key algorithm and key material.',
+    'cert.name.commonName': 'RFC 5280 §4.1.2.4/§4.1.2.6: X.500 commonName; RFC 6125 §6.4.4 prefers subjectAltName for TLS identity.',
+    'cert.name.organization': 'RFC 5280 §4.1.2.4/§4.1.2.6: organizationName attribute in a distinguished name.',
+    'cert.name.organizationalUnit': 'RFC 5280 §4.1.2.4/§4.1.2.6: organizationalUnitName attribute in a distinguished name.',
+    'cert.name.country': 'RFC 5280 §4.1.2.4/§4.1.2.6: countryName attribute in a distinguished name.',
+    'cert.name.state': 'RFC 5280 §4.1.2.4/§4.1.2.6: stateOrProvinceName attribute in a distinguished name.',
+    'cert.name.locality': 'RFC 5280 §4.1.2.4/§4.1.2.6: localityName attribute in a distinguished name.',
+    'cert.name.email': 'RFC 5280 §4.1.2.6 and §4.2.1.6: email identities should be represented as subjectAltName rfc822Name.',
+    'cert.validity.notBefore': 'RFC 5280 §4.1.2.5: start of the certificate validity interval.',
+    'cert.validity.notAfter': 'RFC 5280 §4.1.2.5: end of the certificate validity interval.',
+    'cert.validity.status': 'Advisory local time check against RFC 5280 §4.1.2.5 validity interval.',
+    'cert.basicConstraints.ca': 'RFC 5280 §4.2.1.9: CA=true indicates the public key may verify certificate signatures.',
+    'cert.basicConstraints.pathLen': 'RFC 5280 §4.2.1.9: maximum number of non-self-issued intermediate CA certificates below this CA.',
+    'cert.nameConstraints.value': 'RFC 5280 §4.2.1.10: name constraints for subordinate certificate subject names.',
+    'cert.serialNumber': 'RFC 5280 §4.1.2.2: CA-assigned positive serial number unique per issuer.',
+    'cert.version': 'RFC 5280 §4.1.2.1: certificate version; extensions require v3.',
+    'cert.publicKey.summary': 'RFC 5280 §4.1.2.7: subject public key algorithm and encoded key material.',
+    'cert.signatureAlgorithm': 'RFC 5280 §4.1.1.2 and §4.1.2.3: algorithm used by the issuer to sign the certificate.',
+    'cert.selfSigned': 'RFC 5280 §6: self-signed status alone does not establish trust.',
+    'cert.isCA': 'RFC 5280 §4.2.1.9: CA status is indicated by Basic Constraints CA=true.',
+    'cert.publicKey.pem': 'RFC 5280 §4.1.2.7: exported SubjectPublicKeyInfo PEM for the parsed certificate key.',
+    'cert.fingerprint.sha1': 'Local SHA-1 digest over DER certificate bytes; identifier aid, not a trust decision.',
+    'cert.fingerprint.sha256': 'Local SHA-256 digest over DER certificate bytes for comparison and inventory.',
+    'key.kind': 'Public or private key object parsed from PEM, DER, or JWK input.',
+    'key.algorithm': 'RFC 5280 §4.1.2.7 for SubjectPublicKeyInfo; RFC 5958 for private-key packages.',
+    'key.format': 'RFC 7468 covers textual PEM; ITU-T X.690 / ISO/IEC 8825-1 covers DER; RFC 7517 covers JWK.',
+    'key.encrypted': 'RFC 5958: EncryptedPrivateKeyInfo indicates password-based protection; CertView does not decrypt it.',
+    'key.note': 'Security note for key handling in this viewer.',
+    'key.publicKeyPem': 'RFC 5280 §4.1.2.7: exported SubjectPublicKeyInfo PEM derived from the parsed key.',
+    'csr.subject': 'RFC 2986 §4.1: CertificationRequestInfo subject requested by the applicant.',
+    'csr.publicKey': 'RFC 2986 §4.1: SubjectPublicKeyInfo included in the certification request.',
+    'csr.signatureAlgorithm': 'RFC 2986 §4.1: algorithm used to sign the certification request.',
+    'crl.info': 'RFC 5280 §5.1: certificate revocation list fields.',
+    'crl.issuer': 'RFC 5280 §5.1.2.3: name of the entity that signed and issued the CRL.',
+    'crl.thisUpdate': 'RFC 5280 §5.1.2.4: CRL issue date.',
+    'crl.nextUpdate': 'RFC 5280 §5.1.2.5: date by which the next CRL will be issued.',
+    'crl.revokedEntries': 'RFC 5280 §5.1.2.6: sequence of revoked certificate entries.'
+  };
+
+  var EXT_HELP = {
+    '2.5.29.14': 'RFC 5280 §4.2.1.2: Subject Key Identifier identifies certificates containing a particular public key.',
+    '2.5.29.35': 'RFC 5280 §4.2.1.1: Authority Key Identifier helps identify the issuing CA key.',
+    '2.5.29.15': 'RFC 5280 §4.2.1.3: Key Usage restricts permitted cryptographic operations.',
+    '2.5.29.37': 'RFC 5280 §4.2.1.12: Extended Key Usage indicates application-specific purposes.',
+    '2.5.29.17': 'RFC 5280 §4.2.1.6: Subject Alternative Name carries DNS, IP, email, URI, and other identities.',
+    '2.5.29.19': 'RFC 5280 §4.2.1.9: Basic Constraints identifies CA certificates and path length limits.',
+    '2.5.29.30': 'RFC 5280 §4.2.1.10: Name Constraints limits permitted and excluded subject name spaces for subordinate CAs.',
+    '2.5.29.31': 'RFC 5280 §4.2.1.13: CRL Distribution Points identifies where revocation lists may be obtained.',
+    '1.3.6.1.5.5.7.1.1': 'RFC 5280 §4.2.2.1: Authority Information Access may identify OCSP responders and issuer certificate locations.',
+    '2.5.29.32': 'RFC 5280 §4.2.1.4: Certificate Policies identifies policy OIDs applicable to the certificate.',
+    '1.3.6.1.5.5.7.1.24': 'RFC 7633: TLS Feature extension, commonly used for OCSP Must-Staple.'
   };
 
   function hint(text) { return text ? ' title="' + esc(text) + '"' : ''; }
 
-  function row(label, value) {
+  function row(fieldId, label, value) {
+    if (arguments.length === 2) { value = label; label = fieldId; fieldId = label; }
     if (value === null || value === undefined || value === '') { return ''; }
-    return '<div class="row"' + hint(HELP[label]) + '><span class="lbl">' + esc(label) + '</span><span class="val">' + esc(String(value)) + '</span></div>';
+    return '<div class="row"' + hint(HELP[fieldId] || HELP[label]) + '><span class="lbl">' + esc(label) + '</span><span class="val">' + esc(String(value)) + '</span></div>';
   }
 
-  function fpRow(label, value) {
-    return '<div class="row"><span class="lbl">' + esc(label) + '</span><span class="val mono">' + esc(value) +
+  function fpRow(fieldId, label, value) {
+    return '<div class="row"' + hint(HELP[fieldId]) + '><span class="lbl">' + esc(label) + '</span><span class="val mono">' + esc(value) +
       '<button class="copy-btn" data-v="' + esc(value) + '">Copy</button></span></div>';
   }
 
-  function tags(items) {
+  function tags(fieldId, items) {
     return '<div class="row"><div class="tags">' +
-      items.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') +
+      items.map(function (t) { return '<span class="tag"' + hint(HELP[fieldId]) + '>' + esc(t) + '</span>'; }).join('') +
       '</div></div>';
   }
 
   function sanTags(sans) {
     return '<div class="row"><div class="tags">' +
-      sans.map(function (s) { return '<span class="tag">' + esc(s.type.toUpperCase()) + ': ' + esc(s.value) + '</span>'; }).join('') +
+      sans.map(function (s) { return '<span class="tag"' + hint(HELP['cert.san']) + '>' + esc(s.type.toUpperCase()) + ': ' + esc(s.value) + '</span>'; }).join('') +
       '</div></div>';
   }
 
-  function section(title, content) {
-    return '<details open><summary' + hint(HELP[title]) + '>' + esc(title) + '</summary><div class="section-body">' + content + '</div></details>';
+  function section(fieldId, title, content) {
+    if (arguments.length === 2) { content = title; title = fieldId; fieldId = title; }
+    return '<details open><summary' + hint(HELP[fieldId] || HELP[title]) + '>' + esc(title) + '</summary><div class="section-body">' + content + '</div></details>';
   }
 
   function validationBanner(findings, report) {
@@ -70,21 +123,21 @@
     return exts.map(function (e) {
       var label = e.name + ' (' + e.oid + (e.critical ? ', critical' : ', noncritical') + ')';
       var value = e.value || '(present)';
-      return '<div class="row"><span class="lbl">' + esc(label) + '</span><span class="val">' + esc(value) + '<button class="copy-btn" data-v="' + esc(value) + '">Copy</button></span></div>';
+      return '<div class="row"' + hint(EXT_HELP[e.oid] || 'RFC 5280 §4.2: X.509 v3 extension.') + '><span class="lbl">' + esc(label) + '</span><span class="val">' + esc(value) + '<button class="copy-btn" data-v="' + esc(value) + '">Copy</button></span></div>';
     }).join('');
   }
 
   function nameFields(s) {
     return [
-      ['Common Name', s.commonName],
-      ['Organization', s.org ? s.org.join(', ') : null],
-      ['Org. Unit', s.ou ? s.ou.join(', ') : null],
-      ['Country', s.country ? s.country.join(', ') : null],
-      ['State', s.state ? s.state.join(', ') : null],
-      ['Locality', s.locality ? s.locality.join(', ') : null],
-      ['Email', s.email ? s.email.join(', ') : null],
-    ].filter(function (pair) { return pair[1]; })
-      .map(function (pair) { return row(pair[0], pair[1]); }).join('');
+      ['cert.name.commonName', 'Common Name', s.commonName],
+      ['cert.name.organization', 'Organization', s.org ? s.org.join(', ') : null],
+      ['cert.name.organizationalUnit', 'Org. Unit', s.ou ? s.ou.join(', ') : null],
+      ['cert.name.country', 'Country', s.country ? s.country.join(', ') : null],
+      ['cert.name.state', 'State', s.state ? s.state.join(', ') : null],
+      ['cert.name.locality', 'Locality', s.locality ? s.locality.join(', ') : null],
+      ['cert.name.email', 'Email', s.email ? s.email.join(', ') : null],
+    ].filter(function (pair) { return pair[2]; })
+      .map(function (pair) { return row(pair[0], pair[1], pair[2]); }).join('');
   }
 
   // ── Certificate view ────────────────────────────────────────────────────────
@@ -101,25 +154,25 @@
     function renderCert(c) {
       return validationBanner(c.findings, c.lintReport)
         + banner(c)
-        + section('Subject', nameFields(c.subject))
-        + section('Issuer', nameFields(c.issuer))
-        + section('Validity',
-          row('Not Before', c.notBefore) + row('Not After', c.notAfter) + row('Status', c.relExpiry))
-        + (c.sans.length ? section('Subject Alternative Names', sanTags(c.sans)) : '')
-        + (c.keyUsage.length ? section('Key Usage', tags(c.keyUsage)) : '')
-        + (c.extKeyUsage.length ? section('Extended Key Usage', tags(c.extKeyUsage)) : '')
-        + (c.basicConstraints ? section('Basic Constraints', row('CA Certificate', c.basicConstraints.ca ? 'Yes' : 'No') + row('Path Length', c.basicConstraints.pathLenConstraint)) : '')
-        + (c.nameConstraints ? section('Name Constraints', row('Constraints', c.nameConstraints)) : '')
-        + (c.extensions && c.extensions.length ? section('Extensions', extensionRows(c.extensions)) : '')
-        + section('Fingerprints', fpRow('SHA-1', c.sha1) + fpRow('SHA-256', c.sha256))
-        + section('Details',
-          row('Serial Number', c.serial)
-          + row('Version', 'v' + c.version)
-          + row('Public Key', c.pubKey + (c.keySize ? ' ' + c.keySize + ' bit' : ''))
-          + row('Signature Algorithm', c.sigAlg)
-          + row('Self-Signed', c.selfSigned ? 'Yes' : 'No')
-          + row('CA Certificate', c.isCA ? 'Yes' : 'No'))
-        + (c.publicKeyPem ? section('Public Key', row('Public Key PEM', c.publicKeyPem)) : '')
+        + section('cert.subject', 'Subject', nameFields(c.subject))
+        + section('cert.issuer', 'Issuer', nameFields(c.issuer))
+        + section('cert.validity', 'Validity',
+          row('cert.validity.notBefore', 'Not Before', c.notBefore) + row('cert.validity.notAfter', 'Not After', c.notAfter) + row('cert.validity.status', 'Status', c.relExpiry))
+        + (c.sans.length ? section('cert.san', 'Subject Alternative Names', sanTags(c.sans)) : '')
+        + (c.keyUsage.length ? section('cert.keyUsage', 'Key Usage', tags('cert.keyUsage', c.keyUsage)) : '')
+        + (c.extKeyUsage.length ? section('cert.extKeyUsage', 'Extended Key Usage', tags('cert.extKeyUsage', c.extKeyUsage)) : '')
+        + (c.basicConstraints ? section('cert.basicConstraints', 'Basic Constraints', row('cert.basicConstraints.ca', 'CA Certificate', c.basicConstraints.ca ? 'Yes' : 'No') + row('cert.basicConstraints.pathLen', 'Path Length', c.basicConstraints.pathLenConstraint)) : '')
+        + (c.nameConstraints ? section('cert.nameConstraints', 'Name Constraints', row('cert.nameConstraints.value', 'Constraints', c.nameConstraints)) : '')
+        + (c.extensions && c.extensions.length ? section('cert.extensions', 'Extensions', extensionRows(c.extensions)) : '')
+        + section('Fingerprints', fpRow('cert.fingerprint.sha1', 'SHA-1', c.sha1) + fpRow('cert.fingerprint.sha256', 'SHA-256', c.sha256))
+        + section('cert.details', 'Details',
+          row('cert.serialNumber', 'Serial Number', c.serial)
+          + row('cert.version', 'Version', 'v' + c.version)
+          + row('cert.publicKey.summary', 'Public Key', c.pubKey + (c.keySize ? ' ' + c.keySize + ' bit' : ''))
+          + row('cert.signatureAlgorithm', 'Signature Algorithm', c.sigAlg)
+          + row('cert.selfSigned', 'Self-Signed', c.selfSigned ? 'Yes' : 'No')
+          + row('cert.isCA', 'CA Certificate', c.isCA ? 'Yes' : 'No'))
+        + (c.publicKeyPem ? section('cert.publicKey', 'Public Key', row('cert.publicKey.pem', 'Public Key PEM', c.publicKeyPem)) : '')
         + '<button class="link-btn" id="openRawBtn">Open as text \u2197</button>';
     }
 
@@ -156,11 +209,11 @@
 
     function renderCsr(c) {
       return '<div class="badge-type">CERTIFICATE SIGNING REQUEST</div>'
-        + section('Subject', nameFields(c.subject))
-        + section('Public Key',
-          row('Algorithm', c.pubKey + (c.keySize ? ' ' + c.keySize + ' bit' : ''))
-          + row('Signature Algorithm', c.sigAlg))
-        + (c.sans && c.sans.length ? section('Subject Alternative Names', sanTags(c.sans)) : '');
+        + section('csr.subject', 'Subject', nameFields(c.subject))
+        + section('csr.publicKey', 'Public Key',
+          row('csr.publicKey', 'Algorithm', c.pubKey + (c.keySize ? ' ' + c.keySize + ' bit' : ''))
+          + row('csr.signatureAlgorithm', 'Signature Algorithm', c.sigAlg))
+        + (c.sans && c.sans.length ? section('cert.san', 'Subject Alternative Names', sanTags(c.sans)) : '');
     }
 
     function render() {
@@ -185,12 +238,11 @@
 
   function renderCrl(data) {
     var html = '<div class="badge-type">CERTIFICATE REVOCATION LIST</div>'
-      + '<details open><summary>CRL Info</summary><div class="section-body">'
-      + row('Issuer', data.issuer)
-      + row('This Update', data.thisUpdate)
-      + row('Next Update', data.nextUpdate)
-      + (data.revokedCount >= 0 ? row('Revoked Entries', String(data.revokedCount)) : '')
-      + '</div></details>'
+      + section('crl.info', 'CRL Info',
+        row('crl.issuer', 'Issuer', data.issuer)
+        + row('crl.thisUpdate', 'This Update', data.thisUpdate)
+        + row('crl.nextUpdate', 'Next Update', data.nextUpdate)
+        + (data.revokedCount >= 0 ? row('crl.revokedEntries', 'Revoked Entries', String(data.revokedCount)) : ''))
       + '<button class="link-btn" id="openRawBtn">Open raw \u2197</button>';
     document.getElementById('app').innerHTML = html;
     var btn = document.getElementById('openRawBtn');
@@ -202,11 +254,11 @@
   function renderKeys(keys) {
     var html = keys.map(function (k) {
       return '<div class="badge-type">' + esc(k.kind.toUpperCase()) + ' KEY</div>'
-        + section('Public Key', row('Algorithm', k.algorithm + (k.keySize ? ' ' + k.keySize + ' bit' : '') + (k.curve ? ' ' + k.curve : ''))
-          + row('Format', k.format)
-          + row('Encrypted', k.encrypted ? 'Yes' : '')
-          + row('Note', k.note)
-          + row('Public Key PEM', k.publicKeyPem));
+        + section('cert.publicKey', 'Public Key', row('key.algorithm', 'Algorithm', k.algorithm + (k.keySize ? ' ' + k.keySize + ' bit' : '') + (k.curve ? ' ' + k.curve : ''))
+          + row('key.format', 'Format', k.format)
+          + row('key.encrypted', 'Encrypted', k.encrypted ? 'Yes' : '')
+          + row('key.note', 'Note', k.note)
+          + row('key.publicKeyPem', 'Public Key PEM', k.publicKeyPem));
     }).join('');
     document.getElementById('app').innerHTML = html;
   }

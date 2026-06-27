@@ -2,12 +2,11 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { CertificateInfo, getCertificateStatus, getDaysUntilExpiry } from "../models/certificate";
 import { getCertDisplayName } from "../utils/formatters";
-import { parseCertificateFile } from "../parsers/certParser";
-import { extractCertsFromPkcs7 } from "../parsers/pkcs7Parser";
-import { isDerBuffer } from "../parsers/pemParser";
+import { KeyInfo } from "../parsers/keyParser";
+import { parseDocument } from "../parsers/documentParser";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
 
-type TreeItemType = "file" | "cert" | "field";
+type TreeItemType = "file" | "cert" | "key" | "field";
 
 export class CertTreeItem extends vscode.TreeItem {
   constructor(
@@ -16,6 +15,7 @@ export class CertTreeItem extends vscode.TreeItem {
     public readonly itemType: TreeItemType,
     public readonly resourceUri?: vscode.Uri,
     public readonly certInfo?: CertificateInfo,
+    public readonly keyInfo?: KeyInfo,
     public readonly command?: vscode.Command
   ) {
     super(label, collapsibleState);
@@ -25,7 +25,7 @@ export class CertTreeItem extends vscode.TreeItem {
 
 /**
  * Provides the "Certificates" tree view in the Explorer sidebar.
- * Shows all .pem/.cer/.crt/.der files in the workspace with parsed cert details.
+ * Shows supported certificate and key files in the workspace with parsed details.
  */
 export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<CertTreeItem | undefined | void>();
@@ -39,7 +39,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
 
   private registerFileWatcher(): void {
     this.fileWatcher = vscode.workspace.createFileSystemWatcher(
-      "**/*.{pem,cer,crt,der,p7b,p7c,p7,crl}"
+      "**/*.{pem,cer,crt,der,p7b,p7c,p7,crl,csr,p12,pfx,key,pub,jwk}"
     );
     this.fileWatcher.onDidCreate(() => this.refresh());
     this.fileWatcher.onDidDelete(() => this.refresh());
@@ -72,12 +72,16 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
       return this.getCertFields(element.certInfo);
     }
 
+    if (element.itemType === "key" && element.keyInfo) {
+      return this.getKeyFields(element.keyInfo);
+    }
+
     return [];
   }
 
   private async getCertFiles(): Promise<CertTreeItem[]> {
     const uris = await vscode.workspace.findFiles(
-      "**/*.{pem,cer,crt,der,p7b,p7c,p7,crl}",
+      "**/*.{pem,cer,crt,der,p7b,p7c,p7,crl,csr,p12,pfx,key,pub,jwk}",
       "**/node_modules/**"
     );
 
@@ -89,6 +93,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
           vscode.TreeItemCollapsibleState.Collapsed,
           "file",
           uri,
+          undefined,
           undefined,
           {
             command: "vscode.openWith",
@@ -112,35 +117,51 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
         return [item];
       }
       const raw = await vscode.workspace.fs.readFile(uri);
-      const ext = path.extname(uri.fsPath).toLowerCase();
+      const parsed = parseDocument(raw, uri.fsPath);
 
-      // Skip CRL format — no cert details to show in tree
-      if (ext === ".crl") {
+      if (parsed.type === "crl") {
         const item = new CertTreeItem("Revocation List", vscode.TreeItemCollapsibleState.None, "field");
         item.iconPath = new vscode.ThemeIcon("info");
         return [item];
       }
 
-      let certs: CertificateInfo[];
-      if ([".p7b", ".p7c", ".p7"].includes(ext)) {
-        const text = Buffer.from(raw).toString("utf-8");
-        const pems = extractCertsFromPkcs7(text);
-        certs = pems.flatMap(pem => parseCertificateFile(pem));
-      } else if (ext === ".der" || isDerBuffer(raw)) {
-        certs = parseCertificateFile(raw);
-      } else {
-        const text = Buffer.from(raw).toString("utf-8");
-        certs = parseCertificateFile(text);
+      if (parsed.type === "csr") {
+        const item = new CertTreeItem("Certificate Signing Request", vscode.TreeItemCollapsibleState.None, "field");
+        item.iconPath = new vscode.ThemeIcon("info");
+        return [item];
       }
-      return certs.map((cert, idx) => {
+
+      if (parsed.type === "keys") {
+        return parsed.items.map((key, idx) => {
+          const item = new CertTreeItem(
+            parsed.items.length > 1 ? `[${idx + 1}] ${key.algorithm} ${key.kind} key` : `${key.algorithm} ${key.kind} key`,
+            vscode.TreeItemCollapsibleState.Collapsed,
+            "key",
+            undefined,
+            undefined,
+            key
+          );
+          item.description = key.format;
+          item.iconPath = new vscode.ThemeIcon(key.kind === "private" ? "key" : "symbol-key");
+          item.tooltip = `${key.algorithm} ${key.kind} key (${key.format})`;
+          return item;
+        });
+      }
+
+      if (parsed.type === "error") {
+        throw new Error(parsed.detail ?? parsed.message);
+      }
+
+      return parsed.items.map((cert, idx) => {
         const displayName = getCertDisplayName(cert.subject, cert.serialNumber);
         const status = getCertificateStatus(cert);
         const item = new CertTreeItem(
-          certs.length > 1 ? `[${idx + 1}] ${displayName}` : displayName,
+          parsed.items.length > 1 ? `[${idx + 1}] ${displayName}` : displayName,
           vscode.TreeItemCollapsibleState.Collapsed,
           "cert",
           undefined,
-          cert
+          cert,
+          undefined
         );
         item.description = this.getStatusDescription(cert);
         item.iconPath = this.getStatusIcon(status);
@@ -149,7 +170,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
       });
     } catch {
       const errItem = new CertTreeItem(
-        "Failed to parse certificate",
+        "Failed to parse file",
         vscode.TreeItemCollapsibleState.None,
         "field"
       );
@@ -174,6 +195,23 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
         vscode.TreeItemCollapsibleState.None,
         "field"
       );
+      item.iconPath = new vscode.ThemeIcon("symbol-field");
+      return item;
+    });
+  }
+
+  private getKeyFields(key: KeyInfo): CertTreeItem[] {
+    const fields: Array<[string, string | undefined]> = [
+      ["Kind", key.kind],
+      ["Algorithm", key.algorithm],
+      ["Format", key.format],
+      ["Size", key.keySize ? `${key.keySize} bit` : undefined],
+      ["Curve", key.curve],
+      ["Encrypted", key.encrypted ? "Yes" : undefined],
+    ];
+
+    return fields.filter(([, value]) => value).map(([name, value]) => {
+      const item = new CertTreeItem(`${name}: ${value}`, vscode.TreeItemCollapsibleState.None, "field");
       item.iconPath = new vscode.ThemeIcon("symbol-field");
       return item;
     });

@@ -2,7 +2,7 @@
   "name": "certview",
   "displayName": "X509 Certificate Utility",
   "description": "A developer tool for inspecting X509 certificate files.",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "publisher": "gmm",
   "license": "MIT",
   "repository": {

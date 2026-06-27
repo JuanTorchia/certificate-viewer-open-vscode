@@ -4,6 +4,7 @@
 .claude/**
 .local/**
 local/**
+.tmp/**
 src/**
 out/test/**
 out/**/*.map

@@ -78,16 +78,20 @@ CRL files open with issuer and update timestamps — no more decoding DER by han
 
 ## Security and validation notes
 
-- The viewer performs local lint checks for validity dates, CA/key usage consistency, SAN presence, and unrecognized extensions.
-- Multi-certificate files are checked for issuer/subject ordering, CA marking, keyCertSign usage, validity nesting, and path length constraints.
+- The viewer performs offline structural and profile lint checks for validity dates, CA/key usage consistency, SAN presence and criticality, extension criticality, and unrecognized extensions.
+- Multi-certificate files are checked for issuer/subject ordering, CA marking, keyCertSign usage, validity nesting, and path length constraints. These checks are not full RFC 5280 certification path validation.
 - Critical and noncritical X.509 v3 extensions are shown with OID, display name, and decoded or hexadecimal value where available.
 - Newer algorithms such as ML-DSA depend on the VS Code extension host's Node.js and OpenSSL support.
 - Encrypted private keys are detected but not decrypted; CertView does not prompt for private-key passwords.
-- Lint findings are guidance, not a complete compliance or WebPKI validation engine.
+- Lint findings are advisory. They do not establish certificate trust, revocation status, WebPKI compliance, RFC 5280 path validation, FIPS compliance, Common Criteria conformance, or organizational policy compliance.
 
-This artifact was produced with AI assistance and should be reviewed by a qualified professional before use as compliance evidence, legal submission, or external distribution.
+This project and its documentation include AI-assisted content. Outputs should be reviewed by a qualified security, PKI, and compliance professional before use as compliance evidence, audit evidence, legal submission, accreditation material, or external assurance material.
 
 ## Release Notes
+
+### 0.3.5
+
+- Bumped package metadata for the expanded certificate/key linting release
 
 ### 0.3.4
 
