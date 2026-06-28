@@ -559,34 +559,55 @@ function describeCertificatePolicies(value: string): string {
 }
 
 function describeSignedCertificateTimestamps(value: string): string {
-  const bytes = Buffer.from(value, "binary");
-  if (bytes.length < 2) return hex(value);
-  const listLength = bytes.readUInt16BE(0);
-  let offset = 2;
-  const end = Math.min(bytes.length, 2 + listLength);
-  const scts: string[] = [];
-  let index = 1;
-  while (offset + 2 <= end) {
-    const sctLength = bytes.readUInt16BE(offset);
-    offset += 2;
-    if (sctLength <= 0 || offset + sctLength > end) return hex(value);
-    const sct = bytes.subarray(offset, offset + sctLength);
-    offset += sctLength;
-    scts.push(describeSingleSct(sct, index++));
+  try {
+    const bytes = Buffer.from(value, "binary");
+    if (bytes.length < 2) return hex(value);
+    const listLength = bytes.readUInt16BE(0);
+    if (bytes.length !== 2 + listLength) return hex(value);
+    let offset = 2;
+    const end = 2 + listLength;
+    const scts: string[] = [];
+    let index = 1;
+    while (offset < end) {
+      if (offset + 2 > end) return hex(value);
+      const sctLength = bytes.readUInt16BE(offset);
+      offset += 2;
+      if (sctLength <= 0 || offset + sctLength > end) return hex(value);
+      const sct = bytes.subarray(offset, offset + sctLength);
+      offset += sctLength;
+      scts.push(describeSingleSct(sct, index++));
+    }
+    return scts.length ? scts.join("; ") : hex(value);
+  } catch {
+    return hex(value);
   }
-  return scts.length ? scts.join("; ") : hex(value);
 }
 
 function describeSingleSct(sct: Buffer, index: number): string {
   if (sct.length < 43) return `SCT ${index}: malformed (${sct.length} bytes)`;
   const version = sct[0] === 0 ? "v1" : `version ${sct[0]}`;
   const logId = sct.subarray(1, 33).toString("hex").toUpperCase().match(/.{2}/g)?.join(":") ?? "";
-  const timestamp = Number(sct.readBigUInt64BE(33));
+  const timestamp = timestampToIso(sct.readBigUInt64BE(33));
+  if (!timestamp) return `SCT ${index}: malformed timestamp`;
   const extensionsLengthOffset = 41;
   const extensionsLength = sct.readUInt16BE(extensionsLengthOffset);
   const sigOffset = extensionsLengthOffset + 2 + extensionsLength;
-  const sigAlg = sigOffset + 4 <= sct.length ? signatureSchemeName(sct[sigOffset], sct[sigOffset + 1]) : "unknown signature";
-  return `SCT ${index}: ${version}, logID ${logId}, timestamp ${new Date(timestamp).toISOString()}, ${sigAlg}`;
+  if (sigOffset + 4 > sct.length) return `SCT ${index}: malformed extensions`;
+  const signatureLength = sct.readUInt16BE(sigOffset + 2);
+  if (sigOffset + 4 + signatureLength !== sct.length) return `SCT ${index}: malformed signature`;
+  const sigAlg = signatureSchemeName(sct[sigOffset], sct[sigOffset + 1]);
+  return `SCT ${index}: ${version}, logID ${logId}, timestamp ${timestamp}, ${sigAlg}`;
+}
+
+function timestampToIso(timestamp: bigint): string | undefined {
+  if (timestamp > BigInt(Number.MAX_SAFE_INTEGER)) return undefined;
+  const millis = Number(timestamp);
+  if (millis > 8640000000000000) return undefined;
+  try {
+    return new Date(millis).toISOString();
+  } catch {
+    return undefined;
+  }
 }
 
 function signatureSchemeName(hash: number, signature: number): string {

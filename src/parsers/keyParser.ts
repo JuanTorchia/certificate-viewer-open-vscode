@@ -48,7 +48,7 @@ export function parseKeyFile(raw: Uint8Array, filename: string): KeyInfo[] {
 }
 
 export function parseKeyPemBlocks(text: string): KeyInfo[] {
-  return splitPemBlocks(text).filter(isKeyPemBlock).map(block => keyInfoFromPemBlock(block.pem));
+  return splitPemBlocks(text).filter(isKeyPemBlock).map(block => keyInfoFromPemBlock(block.pem, true));
 }
 
 function keyFileFormat(raw: Uint8Array, filename: string, text: string): string {
@@ -61,7 +61,7 @@ function isKeyPemBlock(block: { type: string }): boolean {
   return /(?:^| )PRIVATE KEY$/.test(block.type) || /(?:^| )PUBLIC KEY$/.test(block.type);
 }
 
-function keyInfoFromPemBlock(pem: string): KeyInfo {
+function keyInfoFromPemBlock(pem: string, tolerateErrors = false): KeyInfo {
   if (/-----BEGIN ENCRYPTED PRIVATE KEY-----/.test(pem) || /Proc-Type: 4,ENCRYPTED/.test(pem)) {
     return {
       kind: "private",
@@ -72,8 +72,18 @@ function keyInfoFromPemBlock(pem: string): KeyInfo {
     };
   }
   const isPrivate = /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/.test(pem);
-  const key = isPrivate ? crypto.createPrivateKey(pem) : crypto.createPublicKey(pem);
-  return keyInfoFromObject(key, "PEM");
+  try {
+    const key = isPrivate ? crypto.createPrivateKey(pem) : crypto.createPublicKey(pem);
+    return keyInfoFromObject(key, "PEM");
+  } catch (error) {
+    if (!tolerateErrors) throw error;
+    return {
+      kind: isPrivate ? "private" : "public",
+      algorithm: `Unsupported ${isPrivate ? "private" : "public"} key`,
+      format: "PEM",
+      note: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 function isEncryptedPkcs8Der(raw: Uint8Array): boolean {

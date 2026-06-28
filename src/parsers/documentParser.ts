@@ -17,6 +17,15 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
 
   try {
     if ([".key", ".pub", ".jwk"].includes(ext)) {
+      const text = Buffer.from(raw).toString("utf-8").replace(/^\uFEFF/, "");
+      if (isPemContent(text)) {
+        const blocks = splitPemBlocks(text);
+        const hasCertificates = blocks.some(block => block.type === "CERTIFICATE");
+        const hasKeys = blocks.some(isKeyPemBlock);
+        if (hasCertificates && hasKeys) {
+          return { type: "bundle", certificates: parseCertificateFile(text), keys: parseKeyPemBlocks(text) };
+        }
+      }
       return { type: "keys", items: parseKeyFile(raw, filename) };
     }
 
@@ -35,7 +44,7 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
 
       const blocks = splitPemBlocks(text);
       const hasCertificates = blocks.some(block => block.type === "CERTIFICATE");
-      const hasKeys = blocks.some(block => /(?:^| )PRIVATE KEY$/.test(block.type) || /(?:^| )PUBLIC KEY$/.test(block.type));
+      const hasKeys = blocks.some(isKeyPemBlock);
       if (hasCertificates && hasKeys) {
         return { type: "bundle", certificates: parseCertificateFile(text), keys: parseKeyPemBlocks(text) };
       }
@@ -76,6 +85,10 @@ export function parseDocument(raw: Uint8Array, filename: string): ParsedDocument
       detail: message,
     };
   }
+}
+
+function isKeyPemBlock(block: { type: string }): boolean {
+  return /(?:^| )PRIVATE KEY$/.test(block.type) || /(?:^| )PUBLIC KEY$/.test(block.type);
 }
 
 function parseDer(raw: Uint8Array, filename: string): ParsedDocument {

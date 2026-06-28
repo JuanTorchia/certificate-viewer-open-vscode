@@ -219,6 +219,24 @@ suite("parseDocument — usuario abre llaves", () => {
     assert.ok(doc.keys[0].spkiFingerprints?.sha256);
   });
 
+  test("mixed PEM preserves certificates when a key block is malformed", () => {
+    const badKey = "-----BEGIN PRIVATE KEY-----\naGVsbG8=\n-----END PRIVATE KEY-----";
+    const doc = parseDocument(Buffer.concat([load("self-signed.pem"), Buffer.from("\n" + badKey)]), "mixed.pem");
+    assert.strictEqual(doc.type, "bundle");
+    assert.strictEqual(doc.certificates[0].subject.commonName, "self-signed.example.com");
+    assert.strictEqual(doc.keys[0].algorithm, "Unsupported private key");
+    assert.ok(doc.keys[0].note);
+  });
+
+  test("mixed PEM bundle is detected even with .key extension", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const keyPem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const doc = parseDocument(Buffer.concat([load("self-signed.pem"), Buffer.from("\n" + keyPem)]), "mixed.key");
+    assert.strictEqual(doc.type, "bundle");
+    assert.strictEqual(doc.certificates[0].subject.commonName, "self-signed.example.com");
+    assert.strictEqual(doc.keys[0].kind, "private");
+  });
+
   test("JWK public key is rendered as a key document", () => {
     const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
     const jwk = publicKey.export({ format: "jwk" });

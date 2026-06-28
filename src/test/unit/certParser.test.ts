@@ -14,7 +14,7 @@ interface TestCert {
   pem: string;
 }
 
-function makeTestCert(options: { commonName: string; isCA: boolean; pathLenConstraint?: number; issuer?: TestCert }): TestCert {
+function makeTestCert(options: { commonName: string; isCA: boolean; pathLenConstraint?: number; issuer?: TestCert; extraExtensions?: Array<Record<string, unknown>> }): TestCert {
   const keys = forge.pki.rsa.generateKeyPair(1024);
   const cert = forge.pki.createCertificate();
   cert.publicKey = keys.publicKey;
@@ -34,9 +34,52 @@ function makeTestCert(options: { commonName: string; isCA: boolean; pathLenConst
     options.isCA
       ? { name: "keyUsage", keyCertSign: true, cRLSign: true, critical: true }
       : { name: "keyUsage", digitalSignature: true, critical: true },
-  ]);
+    ...(options.extraExtensions ?? []),
+  ] as Parameters<typeof cert.setExtensions>[0]);
   cert.sign(options.issuer?.key ?? keys.privateKey, forge.md.sha256.create());
   return { cert, key: keys.privateKey, pem: forge.pki.certificateToPem(cert) };
+}
+
+function makeCertWithSctExtension(value: Buffer): TestCert {
+  return makeTestCert({
+    commonName: "sct.example.com",
+    isCA: false,
+    extraExtensions: [{ id: "1.3.6.1.4.1.11129.2.4.2", critical: false, value: value.toString("binary") }],
+  });
+}
+
+function makeSctList(...scts: Buffer[]): Buffer {
+  const entries = scts.flatMap(sct => [uint16(sct.length), sct]);
+  const body = Buffer.concat(entries);
+  return Buffer.concat([uint16(body.length), body]);
+}
+
+function makeSct(options: { timestamp?: bigint; extensions?: Buffer; signature?: Buffer } = {}): Buffer {
+  const extensions = options.extensions ?? Buffer.alloc(0);
+  const signature = options.signature ?? Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+  const sct = Buffer.alloc(1 + 32 + 8 + 2 + extensions.length + 2 + 2 + signature.length);
+  let offset = 0;
+  sct[offset++] = 0;
+  Buffer.alloc(32, 0xab).copy(sct, offset);
+  offset += 32;
+  sct.writeBigUInt64BE(options.timestamp ?? BigInt(Date.UTC(2024, 0, 1)), offset);
+  offset += 8;
+  sct.writeUInt16BE(extensions.length, offset);
+  offset += 2;
+  extensions.copy(sct, offset);
+  offset += extensions.length;
+  sct[offset++] = 4;
+  sct[offset++] = 3;
+  sct.writeUInt16BE(signature.length, offset);
+  offset += 2;
+  signature.copy(sct, offset);
+  return sct;
+}
+
+function uint16(value: number): Buffer {
+  const buffer = Buffer.alloc(2);
+  buffer.writeUInt16BE(value);
+  return buffer;
 }
 
 function cryptoSafeSerial(seed: string): string {
@@ -202,6 +245,48 @@ suite("certParser — path length constraints", () => {
     const certs = parseCertificateFile([leaf, subCa, intermediate, root].map(item => item.pem).join("\n"));
     const parsedIntermediate = certs.find(cert => cert.subject.commonName === "Intermediate pathLen0");
     assert.ok(parsedIntermediate?.findings.some(finding => finding.severity === "error" && finding.message.includes("Path length constraint 0 is exceeded by 1 subordinate CA")));
+  });
+});
+
+suite("certParser — signed certificate timestamps", () => {
+  test("decodes a well-formed embedded SCT list", () => {
+    const cert = makeCertWithSctExtension(makeSctList(makeSct()));
+    const parsed = parseCertificateFile(cert.pem)[0];
+    const ext = parsed.extensions.find(item => item.oid === "1.3.6.1.4.1.11129.2.4.2");
+    assert.ok(ext);
+    assert.ok(ext.value.includes("SCT 1: v1"), ext.value);
+    assert.ok(ext.value.includes("timestamp 2024-01-01T00:00:00.000Z"), ext.value);
+    assert.ok(ext.value.includes("SHA-256 with ECDSA"), ext.value);
+  });
+
+  test("falls back to DER when SCT list length has trailing bytes", () => {
+    const cert = makeCertWithSctExtension(Buffer.from([0x00, 0x00, 0xff]));
+    const parsed = parseCertificateFile(cert.pem)[0];
+    const ext = parsed.extensions.find(item => item.oid === "1.3.6.1.4.1.11129.2.4.2");
+    assert.ok(ext?.value.startsWith("DER:"), ext?.value);
+  });
+
+  test("labels truncated SCT entries as malformed without throwing", () => {
+    const cert = makeCertWithSctExtension(makeSctList(Buffer.alloc(10)));
+    const parsed = parseCertificateFile(cert.pem)[0];
+    const ext = parsed.extensions.find(item => item.oid === "1.3.6.1.4.1.11129.2.4.2");
+    assert.ok(ext?.value.includes("SCT 1: malformed (10 bytes)"), ext?.value);
+  });
+
+  test("labels SCT timestamps outside JavaScript date range as malformed", () => {
+    const cert = makeCertWithSctExtension(makeSctList(makeSct({ timestamp: BigInt(Number.MAX_SAFE_INTEGER) + 1n })));
+    const parsed = parseCertificateFile(cert.pem)[0];
+    const ext = parsed.extensions.find(item => item.oid === "1.3.6.1.4.1.11129.2.4.2");
+    assert.ok(ext?.value.includes("malformed timestamp"), ext?.value);
+  });
+
+  test("labels impossible SCT extension length as malformed", () => {
+    const sct = makeSct();
+    sct.writeUInt16BE(0xffff, 41);
+    const cert = makeCertWithSctExtension(makeSctList(sct));
+    const parsed = parseCertificateFile(cert.pem)[0];
+    const ext = parsed.extensions.find(item => item.oid === "1.3.6.1.4.1.11129.2.4.2");
+    assert.ok(ext?.value.includes("malformed extensions"), ext?.value);
   });
 });
 

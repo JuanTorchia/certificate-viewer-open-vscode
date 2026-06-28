@@ -81,7 +81,7 @@ CRL files open with issuer and update timestamps — no more decoding DER by han
 
 - The viewer performs offline structural and profile lint checks for validity dates, CA/key usage consistency, SAN presence and criticality, extension criticality, and unrecognized extensions.
 - Multi-certificate files are checked for issuer/subject ordering, CA marking, keyCertSign usage, validity nesting, and path length constraints. These checks are not full RFC 5280 certification path validation.
-- Critical and noncritical X.509 v3 extensions are shown with OID, display name, and decoded or hexadecimal value where available. Certificate Transparency SCT lists are decoded into SCT entries with version, log ID, timestamp, and signature algorithm.
+- Critical and noncritical X.509 v3 extensions are shown with OID, display name, and decoded or hexadecimal value where available. Well-formed Certificate Transparency SCT lists are decoded into SCT entries with version, log ID, timestamp, and signature algorithm; malformed SCT values fall back to raw DER.
 - Mixed PEM files that contain both certificate and key blocks are shown as a bundle instead of dropping key blocks.
 - Public and private key views include SHA-1 and SHA-256 fingerprints over the DER-encoded SubjectPublicKeyInfo.
 - Newer algorithms such as ML-DSA depend on the VS Code extension host's Node.js and OpenSSL support.
