@@ -7,15 +7,23 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "America/Argentina/Buenos_Aires"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "security"
     groups:
       production-dependencies:
         dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
       development-dependencies:
         dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
