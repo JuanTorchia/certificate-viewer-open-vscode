@@ -72,3 +72,17 @@ suite("CertEditorProvider — file format coverage", () => {
     });
   }
 });
+
+suite("CertView diagnostics", () => {
+  test("expired certificate publishes a VS Code diagnostic", async () => {
+    const target = uri("expired.pem");
+    await assert.doesNotReject(exec("certview.openCertificate", target));
+    await new Promise(r => setTimeout(r, 500));
+    const diagnostics = vscode.languages.getDiagnostics(target);
+    assert.ok(
+      diagnostics.some(d => d.source === "CertView" && /expired/i.test(d.message)),
+      `Expected CertView expired diagnostic, got: ${diagnostics.map(d => d.message).join(" | ")}`
+    );
+    await exec("workbench.action.closeAllEditors");
+  });
+});

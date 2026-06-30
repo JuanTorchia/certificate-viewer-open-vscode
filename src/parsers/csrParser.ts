@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import * as forge from "node-forge";
 import { CertificateSubject } from "../models/certificate";
 import { splitPemBlocks, base64ToDer } from "./pemParser";
 
@@ -7,6 +8,13 @@ export interface CsrInfo {
   subject: CertificateSubject;
   publicKeyAlgorithm: string;
   publicKeySize?: number;
+  publicKeyCurve?: string;
+  publicKeyExponent?: string;
+  publicKeyPem?: string;
+  spkiFingerprints?: {
+    sha1: string;
+    sha256: string;
+  };
   subjectAltNames: string[];
   requestedExtensions: string[];
   signatureAlgorithm: string;
@@ -46,18 +54,62 @@ function parseSingleCsr(pem: string, base64: string): CsrInfo {
   // the raw public key from the CSR.
 
   const der = base64ToDer(base64);
-  const subject = extractCsrSubject(der);
-  const { algorithm, keySize } = extractCsrPublicKey(der);
+  const forgeCsr = tryParseForgeCsr(pem);
+  const keyInfo = extractForgePublicKey(forgeCsr) ?? extractCsrPublicKey(der);
+  const subject = extractForgeSubject(forgeCsr) ?? extractCsrSubject(der);
+  const requestedExtensions = extractRequestedExtensions(forgeCsr);
 
   return {
     pem,
     subject,
-    publicKeyAlgorithm: algorithm,
-    publicKeySize: keySize,
-    subjectAltNames: extractCsrSANs(der),
-    requestedExtensions: [],
+    publicKeyAlgorithm: keyInfo.algorithm,
+    publicKeySize: keyInfo.keySize,
+    publicKeyCurve: keyInfo.curve,
+    publicKeyExponent: keyInfo.exponent,
+    publicKeyPem: keyInfo.publicKeyPem,
+    spkiFingerprints: keyInfo.spkiFingerprints,
+    subjectAltNames: extractCsrSANs(forgeCsr),
+    requestedExtensions,
     signatureAlgorithm: detectCsrSignatureAlgorithm(der),
   };
+}
+
+function extractForgePublicKey(csr: forge.pki.CertificateSigningRequest | undefined): ReturnType<typeof extractCsrPublicKey> | undefined {
+  if (!csr?.publicKey) return undefined;
+  try {
+    return keyInfoFromObject(crypto.createPublicKey(forge.pki.publicKeyToPem(csr.publicKey)));
+  } catch {
+    return undefined;
+  }
+}
+
+function extractForgeSubject(csr: forge.pki.CertificateSigningRequest | undefined): CertificateSubject | undefined {
+  if (!csr?.subject.attributes.length) return undefined;
+  const subject: CertificateSubject = {};
+  for (const attr of csr.subject.attributes) {
+    const value = String(attr.value);
+    switch (attr.type ?? attr.name) {
+      case "2.5.4.3": subject.commonName = value; break;
+      case "commonName": subject.commonName = value; break;
+      case "2.5.4.10": (subject.organization ??= []).push(value); break;
+      case "organizationName": (subject.organization ??= []).push(value); break;
+      case "2.5.4.11": (subject.organizationalUnit ??= []).push(value); break;
+      case "organizationalUnitName": (subject.organizationalUnit ??= []).push(value); break;
+      case "2.5.4.6": (subject.country ??= []).push(value); break;
+      case "countryName": (subject.country ??= []).push(value); break;
+      case "2.5.4.8": (subject.state ??= []).push(value); break;
+      case "stateOrProvinceName": (subject.state ??= []).push(value); break;
+      case "2.5.4.7": (subject.locality ??= []).push(value); break;
+      case "localityName": (subject.locality ??= []).push(value); break;
+      case "1.2.840.113549.1.9.1": (subject.emailAddress ??= []).push(value); break;
+      case "emailAddress": (subject.emailAddress ??= []).push(value); break;
+    }
+  }
+  return subject;
+}
+
+function tryParseForgeCsr(pem: string): forge.pki.CertificateSigningRequest | undefined {
+  try { return forge.pki.certificationRequestFromPem(pem); } catch { return undefined; }
 }
 
 /**
@@ -85,7 +137,7 @@ function extractCsrSubject(der: Uint8Array): CertificateSubject {
   }
 }
 
-function extractCsrPublicKey(der: Uint8Array): { algorithm: string; keySize?: number } {
+function extractCsrPublicKey(der: Uint8Array): { algorithm: string; keySize?: number; curve?: string; exponent?: string; publicKeyPem?: string; spkiFingerprints?: { sha1: string; sha256: string } } {
   try {
     // Try importing as a public key via spki extraction
     // CertReqInfo: version, subject, subjectPublicKeyInfo
@@ -102,23 +154,62 @@ function extractCsrPublicKey(der: Uint8Array): { algorithm: string; keySize?: nu
     const spkiBytes = getElement(certReqInfo, spkiOffset);
     if (!spkiBytes) return { algorithm: "Unknown" };
 
-    // Wrap SPKI in proper DER for import
-    const spkiDer = buildDerSequence(spkiBytes);
-    const key = crypto.createPublicKey({ key: Buffer.from(spkiDer), format: "der", type: "spki" });
-    const type = (key.asymmetricKeyType ?? "unknown").toUpperCase();
-    const details = key.asymmetricKeyDetails ?? {};
-    const keySize = "modulusLength" in details ? (details.modulusLength as number) : undefined;
-    const curve = "namedCurve" in details ? ` (${details.namedCurve})` : "";
-    return { algorithm: type + curve, keySize };
+    return keyInfoFromObject(crypto.createPublicKey({ key: Buffer.from(spkiBytes), format: "der", type: "spki" }));
   } catch {
     return { algorithm: "Unknown" };
   }
 }
 
-function extractCsrSANs(_der: Uint8Array): string[] {
-  // Full SAN extraction from CSR attributes requires deep ASN.1 parsing.
-  // Deferred to a future implementation.
-  return [];
+function keyInfoFromObject(key: crypto.KeyObject): { algorithm: string; keySize?: number; curve?: string; exponent?: string; publicKeyPem?: string; spkiFingerprints?: { sha1: string; sha256: string } } {
+  const type = (key.asymmetricKeyType ?? "unknown").toUpperCase();
+  const details = key.asymmetricKeyDetails ?? {};
+  const keySize = "modulusLength" in details ? (details.modulusLength as number) : undefined;
+  const curve = "namedCurve" in details && typeof details.namedCurve === "string" ? friendlyCurveName(details.namedCurve) : undefined;
+  const exponent = "publicExponent" in details && details.publicExponent !== undefined ? details.publicExponent.toString() : undefined;
+  const exported = key.export({ type: "spki", format: "der" }) as Buffer;
+  return {
+    algorithm: curve ? `${type} (${curve})` : type,
+    keySize,
+    curve,
+    exponent,
+    publicKeyPem: key.export({ type: "spki", format: "pem" }).toString(),
+    spkiFingerprints: { sha1: fingerprint(exported, "sha1"), sha256: fingerprint(exported, "sha256") },
+  };
+}
+
+function extractCsrSANs(csr: forge.pki.CertificateSigningRequest | undefined): string[] {
+  return csrExtensions(csr)
+    .filter(ext => ext.name === "subjectAltName" || ext.id === "2.5.29.17")
+    .flatMap(ext => ((ext as Record<string, unknown>).altNames as Array<{ type?: number; value?: unknown; ip?: string }> | undefined) ?? [])
+    .map(name => {
+      if (name.type === 2) return `DNS:${String(name.value ?? "")}`;
+      if (name.type === 1) return `email:${String(name.value ?? "")}`;
+      if (name.type === 6) return `URI:${String(name.value ?? "")}`;
+      if (name.type === 7) return `IP:${name.ip ?? String(name.value ?? "")}`;
+      return `type ${name.type ?? "unknown"}:${String(name.value ?? "")}`;
+    })
+    .filter(value => !value.endsWith(":"));
+}
+
+function extractRequestedExtensions(csr: forge.pki.CertificateSigningRequest | undefined): string[] {
+  return csrExtensions(csr).map(ext => String(ext.name ?? ext.id ?? "unknown"));
+}
+
+function csrExtensions(csr: forge.pki.CertificateSigningRequest | undefined): Array<Record<string, unknown>> {
+  const attr = csr?.getAttribute({ name: "extensionRequest" }) as { extensions?: Array<Record<string, unknown>> } | null;
+  return attr?.extensions ?? [];
+}
+
+function friendlyCurveName(curve: string): string {
+  const normalized = curve.toLowerCase();
+  if (normalized === "prime256v1" || normalized === "secp256r1") return "secp256r1 / prime256v1 / P-256";
+  if (normalized === "secp384r1") return "secp384r1 / P-384";
+  if (normalized === "secp521r1") return "secp521r1 / P-521";
+  return curve;
+}
+
+function fingerprint(bytes: Buffer, algorithm: "sha1" | "sha256"): string {
+  return crypto.createHash(algorithm).update(bytes).digest("hex").toUpperCase().match(/.{2}/g)?.join(":") ?? "";
 }
 
 function detectCsrSignatureAlgorithm(der: Uint8Array): string {
@@ -174,21 +265,6 @@ function getElement(buf: Uint8Array, offset: number): Uint8Array | null {
   const headerSize = getHeaderSize(buf, offset);
   const len = getElementLength(buf, offset);
   return buf.slice(offset, offset + headerSize + len);
-}
-
-function buildDerSequence(content: Uint8Array): Uint8Array {
-  const lenBytes = encodeDerLength(content.length);
-  const result = new Uint8Array(1 + lenBytes.length + content.length);
-  result[0] = 0x30;
-  result.set(lenBytes, 1);
-  result.set(content, 1 + lenBytes.length);
-  return result;
-}
-
-function encodeDerLength(len: number): Uint8Array {
-  if (len < 0x80) return new Uint8Array([len]);
-  if (len < 0x100) return new Uint8Array([0x81, len]);
-  return new Uint8Array([0x82, (len >> 8) & 0xff, len & 0xff]);
 }
 
 // OID string → RDN attribute name

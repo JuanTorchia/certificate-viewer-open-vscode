@@ -7,13 +7,27 @@
  * Cada test corresponde a un escenario real de usuario, no a una unidad interna.
  */
 import * as assert from "assert";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { parseDocument } from "../../parsers/documentParser";
-import { getCertificateStatus } from "../../models/certificate";
+import { CertificateInfo, getCertificateStatus } from "../../models/certificate";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
-const load = (f: string): Buffer => fs.readFileSync(path.join(FIXTURES, f));
+const CERT_FIXTURES = {
+  "self-signed.pem": path.join(FIXTURES, "self-signed.pem"),
+  "chain.pem": path.join(FIXTURES, "chain.pem"),
+  "expired.pem": path.join(FIXTURES, "expired.pem"),
+  "self-signed.cer": path.join(FIXTURES, "self-signed.cer"),
+  "self-signed-der.cer": path.join(FIXTURES, "self-signed-der.cer"),
+  "self-signed.der": path.join(FIXTURES, "self-signed.der"),
+  "bundle.p7b": path.join(FIXTURES, "bundle.p7b"),
+  "bundle-der.p7b": path.join(FIXTURES, "bundle-der.p7b"),
+  "test.crl": path.join(FIXTURES, "test.crl"),
+  "bom.pem": path.join(FIXTURES, "bom.pem"),
+  "crlf.pem": path.join(FIXTURES, "crlf.pem"),
+} as const;
+const load = (f: keyof typeof CERT_FIXTURES): Buffer => fs.readFileSync(CERT_FIXTURES[f]);
 
 // ── Escenario: usuario abre un .pem estándar ──────────────────────────────────
 
@@ -130,6 +144,16 @@ suite("parseDocument — usuario abre .crl", () => {
     assert.notStrictEqual(doc.issuer, "Unknown", "Issuer no fue extraído — extractCrlIssuer falló");
     assert.ok(doc.issuer.length > 0);
   });
+
+  test("CRL muestra fechas, conteo, algoritmo y fingerprints", () => {
+    const doc = parseDocument(load("test.crl"), "test.crl");
+    assert.strictEqual(doc.type, "crl");
+    assert.notStrictEqual(doc.thisUpdate, "See raw file");
+    assert.notStrictEqual(doc.nextUpdate, "See raw file");
+    assert.ok(doc.revokedCount >= 0);
+    assert.ok(doc.signatureAlgorithm);
+    assert.match(doc.fingerprints?.sha256 ?? "", /^[A-F0-9:]+$/);
+  });
 });
 
 // ── Escenario: usuario abre un archivo con BOM (editores Windows) ─────────────
@@ -198,7 +222,7 @@ suite("parseDocument — usuario abre archivo incorrecto", () => {
     assert.strictEqual(doc.type, "error");
   });
 
-  test("PEM con bloque PRIVATE KEY en vez de CERTIFICATE → type=error", () => {
+  test("invalid PEM private key block → type=error", () => {
     const privateKey = Buffer.from(
       "-----BEGIN PRIVATE KEY-----\naGVsbG8=\n-----END PRIVATE KEY-----"
     );
@@ -207,26 +231,152 @@ suite("parseDocument — usuario abre archivo incorrecto", () => {
   });
 });
 
+suite("parseDocument — usuario abre llaves", () => {
+  test("mixed PEM certificate and private key returns certificate and key bundle", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const keyPem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const doc = parseDocument(Buffer.concat([load("self-signed.pem"), Buffer.from("\n" + keyPem)]), "mixed.pem");
+    assert.strictEqual(doc.type, "bundle");
+    assert.strictEqual(doc.certificates[0].subject.commonName, "self-signed.example.com");
+    assert.strictEqual(doc.keys[0].kind, "private");
+    assert.ok(doc.keys[0].spkiFingerprints?.sha256);
+  });
+
+  test("mixed PEM preserves certificates when a key block is malformed", () => {
+    const badKey = "-----BEGIN PRIVATE KEY-----\naGVsbG8=\n-----END PRIVATE KEY-----";
+    const doc = parseDocument(Buffer.concat([load("self-signed.pem"), Buffer.from("\n" + badKey)]), "mixed.pem");
+    assert.strictEqual(doc.type, "bundle");
+    assert.strictEqual(doc.certificates[0].subject.commonName, "self-signed.example.com");
+    assert.strictEqual(doc.keys[0].algorithm, "Unsupported private key");
+    assert.ok(doc.keys[0].note);
+  });
+
+  test("mixed PEM bundle is detected even with .key extension", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const keyPem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const doc = parseDocument(Buffer.concat([load("self-signed.pem"), Buffer.from("\n" + keyPem)]), "mixed.key");
+    assert.strictEqual(doc.type, "bundle");
+    assert.strictEqual(doc.certificates[0].subject.commonName, "self-signed.example.com");
+    assert.strictEqual(doc.keys[0].kind, "private");
+  });
+
+  test("JWK public key is rendered as a key document", () => {
+    const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const jwk = publicKey.export({ format: "jwk" });
+    const doc = parseDocument(Buffer.from(JSON.stringify(jwk)), "key.jwk");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].format, "JWK");
+    assert.ok(doc.items[0].spkiFingerprints?.sha256);
+  });
+
+  test("ML-DSA public key is rendered when runtime supports it", function () {
+    let publicKey: crypto.KeyObject;
+    try {
+      const generateKeyPairSync = crypto.generateKeyPairSync as (type: string) => crypto.KeyPairKeyObjectResult;
+      publicKey = generateKeyPairSync("ml-dsa-65").publicKey;
+    } catch {
+      this.skip();
+      return;
+    }
+    const pem = publicKey.export({ type: "spki", format: "pem" }).toString();
+    const doc = parseDocument(Buffer.from(pem), "mldsa.pub");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].algorithm, "ML-DSA-65");
+  });
+
+  test("encrypted private keys are detected without password prompts", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const encrypted = privateKey.export({
+      type: "pkcs8",
+      format: "pem",
+      cipher: "aes-256-cbc",
+      passphrase: "secret",
+    });
+    const doc = parseDocument(Buffer.from(encrypted), "encrypted.key");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "private");
+    assert.strictEqual(doc.items[0].encrypted, true);
+    assert.ok(doc.items[0].note?.includes("does not prompt"));
+    assert.strictEqual(doc.items[0].publicKeyPem, undefined);
+  });
+
+  test("DER SPKI public key is rendered as a key document", () => {
+    const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = publicKey.export({ type: "spki", format: "der" });
+    const doc = parseDocument(der, "public.pub");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "public");
+    assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].format, "DER");
+    assert.match(doc.items[0].spkiFingerprints?.sha256 ?? "", /^[A-F0-9:]+$/);
+  });
+
+  test("DER SPKI public key with .der extension falls back to key parsing", () => {
+    const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = publicKey.export({ type: "spki", format: "der" });
+    const doc = parseDocument(der, "public.der");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "public");
+    assert.strictEqual(doc.items[0].format, "DER");
+  });
+
+  test("DER PKCS#8 private key is rendered as a key document", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = privateKey.export({ type: "pkcs8", format: "der" });
+    const doc = parseDocument(der, "private.key");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "private");
+    assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].format, "DER");
+  });
+
+  test("DER PKCS#8 private key with .der extension falls back to key parsing", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = privateKey.export({ type: "pkcs8", format: "der" });
+    const doc = parseDocument(der, "private.der");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].kind, "private");
+    assert.strictEqual(doc.items[0].format, "DER");
+  });
+
+  test("DER encrypted PKCS#8 private key is detected without decryption", () => {
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const der = privateKey.export({ type: "pkcs8", format: "der", cipher: "aes-256-cbc", passphrase: "secret" });
+    const doc = parseDocument(der, "encrypted.key");
+    assert.strictEqual(doc.type, "keys");
+    assert.strictEqual(doc.items[0].encrypted, true);
+    assert.strictEqual(doc.items[0].publicKeyPem, undefined);
+  });
+});
+
 // ── Escenario: configuración warningDays afecta lo que ve el usuario ──────────
 
 suite("parseDocument + getCertificateStatus — warningDays config", () => {
-  test("cert que vence en 10 días: con warningDays=30 → expiring-soon", () => {
-    const doc = parseDocument(load("expiring-soon.pem"), "expiring-soon.pem");
+  function nearExpiryCert(): CertificateInfo {
+    const doc = parseDocument(load("self-signed.pem"), "self-signed.pem");
     assert.strictEqual(doc.type, "certificates");
-    assert.strictEqual(getCertificateStatus(doc.items[0], 30), "expiring-soon");
+    const now = new Date();
+    return {
+      ...doc.items[0],
+      validity: {
+        notBefore: new Date(now.getTime() - 86400000),
+        notAfter: new Date(now.getTime() + 10 * 86400000),
+      },
+    };
+  }
+
+  test("cert que vence en 10 días: con warningDays=30 → expiring-soon", () => {
+    assert.strictEqual(getCertificateStatus(nearExpiryCert(), 30), "expiring-soon");
   });
 
   test("cert que vence en 10 días: con warningDays=5 → valid", () => {
-    const doc = parseDocument(load("expiring-soon.pem"), "expiring-soon.pem");
-    assert.strictEqual(doc.type, "certificates");
     // Con threshold de 5 días, 10 días restantes es "valid"
-    assert.strictEqual(getCertificateStatus(doc.items[0], 5), "valid");
+    assert.strictEqual(getCertificateStatus(nearExpiryCert(), 5), "valid");
   });
 
   test("cambiar warningDays cambia el status que ve el usuario", () => {
-    const doc = parseDocument(load("expiring-soon.pem"), "expiring-soon.pem");
-    assert.strictEqual(doc.type, "certificates");
-    const cert = doc.items[0];
+    const cert = nearExpiryCert();
     // El mismo cert puede ser "valid" o "expiring-soon" según la config del usuario
     const withHighThreshold = getCertificateStatus(cert, 30);
     const withLowThreshold  = getCertificateStatus(cert, 5);

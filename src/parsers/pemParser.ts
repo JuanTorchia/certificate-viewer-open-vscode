@@ -1,8 +1,8 @@
+import { MAX_PEM_BLOCK_CHARS, MAX_PEM_BLOCKS } from "./limits";
+
 const PEM_SEP = "-".repeat(5);
 const PEM_HEADER_RE = new RegExp(`^${PEM_SEP}BEGIN ([A-Z0-9 ]+)${PEM_SEP}$`);
 const PEM_FOOTER_RE = new RegExp(`^${PEM_SEP}END ([A-Z0-9 ]+)${PEM_SEP}$`);
-
-const MAX_PEM_BLOCKS = 500;
 
 export interface PemBlock {
   type: string;
@@ -42,6 +42,9 @@ export function splitPemBlocks(pemContent: string): PemBlock[] {
     } else if (footerMatch && inBlock) {
       blockLines.push(trimmed);
       const pem = blockLines.join("\n");
+      if (pem.length > MAX_PEM_BLOCK_CHARS) {
+        throw new Error(`PEM block exceeds the maximum of ${MAX_PEM_BLOCK_CHARS} characters.`);
+      }
       const base64 = blockLines.slice(1, -1).join("").replace(/\s/g, "");
       blocks.push({ type: blockType, base64, pem });
       if (blocks.length > MAX_PEM_BLOCKS) {
@@ -52,6 +55,9 @@ export function splitPemBlocks(pemContent: string): PemBlock[] {
       blockLines = [];
     } else if (inBlock) {
       blockLines.push(trimmed);
+      if (blockLines.join("\n").length > MAX_PEM_BLOCK_CHARS) {
+        throw new Error(`PEM block exceeds the maximum of ${MAX_PEM_BLOCK_CHARS} characters.`);
+      }
     }
   }
 

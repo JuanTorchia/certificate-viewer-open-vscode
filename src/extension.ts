@@ -1,10 +1,14 @@
 import * as vscode from "vscode";
 import { CertEditorProvider } from "./providers/certEditorProvider";
 import { CertTreeProvider } from "./providers/certTreeProvider";
+import { CertDiagnosticsProvider } from "./providers/certDiagnostics";
 
 export function activate(context: vscode.ExtensionContext): void {
+  const diagnosticsProvider = new CertDiagnosticsProvider();
+  context.subscriptions.push(diagnosticsProvider);
+
   // Register the custom editor for certificate files
-  context.subscriptions.push(CertEditorProvider.register(context));
+  context.subscriptions.push(CertEditorProvider.register(context, diagnosticsProvider));
 
   // Register the sidebar tree view
   const treeProvider = new CertTreeProvider();

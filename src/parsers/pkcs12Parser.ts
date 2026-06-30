@@ -1,6 +1,7 @@
 import * as forge from "node-forge";
 import { parseCertificateFile } from "./certParser";
 import { CertificateInfo } from "../models/certificate";
+import { assertWithinInputLimit, MAX_CERTIFICATES } from "./limits";
 
 export class Pkcs12PasswordError extends Error {
   constructor() {
@@ -13,6 +14,7 @@ export class Pkcs12PasswordError extends Error {
  * Throws Pkcs12PasswordError if the password is wrong or MAC verification fails.
  */
 export function parsePkcs12(raw: Uint8Array, password: string): CertificateInfo[] {
+  assertWithinInputLimit(raw.byteLength, "PKCS#12 file");
   let p12: forge.pkcs12.Pkcs12Pfx;
   try {
     const buf = forge.util.createBuffer(Buffer.from(raw).toString("binary"));
@@ -37,6 +39,9 @@ export function parsePkcs12(raw: Uint8Array, password: string): CertificateInfo[
         certs.push(...parseCertificateFile(pem));
       } catch {
         // skip unreadable cert bags
+      }
+      if (certs.length > MAX_CERTIFICATES) {
+        throw new Error(`PKCS#12 file exceeds the maximum of ${MAX_CERTIFICATES} certificates.`);
       }
     }
   }

@@ -1,4 +1,5 @@
 import { derToPem, splitPemBlocks } from "./pemParser";
+import { assertWithinInputLimit, MAX_CERTIFICATES, MAX_PEM_BLOCK_CHARS } from "./limits";
 
 /**
  * Extracts DER-encoded X.509 certificates from a PKCS#7 (CMS) SignedData structure.
@@ -22,6 +23,7 @@ import { derToPem, splitPemBlocks } from "./pemParser";
  *         SET       signerInfos
  */
 export function extractCertsFromPkcs7(input: string | Uint8Array): string[] {
+  assertWithinInputLimit(typeof input === "string" ? Buffer.byteLength(input, "utf8") : input.byteLength, "PKCS#7 file");
   let der: Uint8Array;
 
   if (typeof input === "string") {
@@ -30,6 +32,7 @@ export function extractCertsFromPkcs7(input: string | Uint8Array): string[] {
     if (blocks.length === 0) {
       // Maybe it has direct CERTIFICATE blocks (some tools do this)
       const certBlocks = splitPemBlocks(input).filter(b => b.type === "CERTIFICATE");
+      if (certBlocks.length > MAX_CERTIFICATES) throw new Error(`PKCS#7 file exceeds the maximum of ${MAX_CERTIFICATES} certificates.`);
       return certBlocks.map(b => b.pem);
     }
     der = new Uint8Array(Buffer.from(blocks[0].base64, "base64"));
@@ -41,9 +44,10 @@ export function extractCertsFromPkcs7(input: string | Uint8Array): string[] {
     return extractCertsFromDer(der);
   } catch (err) {
     if (typeof input === "string") {
-      const certBlocks = splitPemBlocks(input).filter(b => b.type === "CERTIFICATE");
-      if (certBlocks.length > 0) {
-        return certBlocks.map(b => b.pem);
+        const certBlocks = splitPemBlocks(input).filter(b => b.type === "CERTIFICATE");
+        if (certBlocks.length > 0) {
+          if (certBlocks.length > MAX_CERTIFICATES) throw new Error(`PKCS#7 file exceeds the maximum of ${MAX_CERTIFICATES} certificates.`);
+          return certBlocks.map(b => b.pem);
       }
     }
     const msg = err instanceof Error ? err.message : String(err);
@@ -108,7 +112,9 @@ function extractSequencesFrom(buf: Uint8Array, start: number, end: number): stri
     if (el.tag === 0x30) {
       // Full element bytes (tag + length + content)
       const certDer = buf.slice(pos, el.nextOffset);
+      if (certDer.byteLength > MAX_PEM_BLOCK_CHARS) throw new Error(`Certificate exceeds the maximum of ${MAX_PEM_BLOCK_CHARS} bytes.`);
       pems.push(derToPem(certDer));
+      if (pems.length > MAX_CERTIFICATES) throw new Error(`PKCS#7 file exceeds the maximum of ${MAX_CERTIFICATES} certificates.`);
     }
     pos = el.nextOffset;
   }
@@ -144,6 +150,9 @@ function readElement(buf: Uint8Array, offset: number): DerElement {
 }
 
 function readLength(buf: Uint8Array, offset: number): { length: number; headerBytes: number } {
+  if (offset >= buf.length) {
+    throw new Error(`Length offset ${offset} out of bounds (len ${buf.length})`);
+  }
   const first = buf[offset];
 
   if (first < 0x80) {
@@ -157,6 +166,9 @@ function readLength(buf: Uint8Array, offset: number): { length: number; headerBy
 
   let length = 0;
   for (let i = 0; i < numBytes; i++) {
+    if (offset + 1 + i >= buf.length) {
+      throw new Error(`Truncated length at offset ${offset}`);
+    }
     length = (length << 8) | buf[offset + 1 + i];
   }
 

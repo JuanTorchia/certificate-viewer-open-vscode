@@ -2,7 +2,7 @@
   "name": "certview",
   "displayName": "X509 Certificate Utility",
   "description": "A developer tool for inspecting X509 certificate files.",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "publisher": "gmm",
   "license": "MIT",
   "repository": {
@@ -74,6 +74,15 @@
           },
           {
             "filenamePattern": "*.pfx"
+          },
+          {
+            "filenamePattern": "*.key"
+          },
+          {
+            "filenamePattern": "*.pub"
+          },
+          {
+            "filenamePattern": "*.jwk"
           }
         ],
         "priority": "default"
@@ -100,7 +109,7 @@
       "editor/context": [
         {
           "command": "certview.openCertificate",
-          "when": "resourceExtname =~ /\\.(pem|cer|crt|der|crl|p7b|p7c|p7|csr|p12|pfx)$/",
+          "when": "resourceExtname =~ /\\.(pem|cer|crt|der|crl|p7b|p7c|p7|csr|p12|pfx|key|pub|jwk)$/",
           "group": "certview"
         }
       ]
@@ -159,6 +168,7 @@
     "pretest": "pnpm compile",
     "test:unit": "pnpm compile && node ./out/test/unit/index.js",
     "test": "node ./out/test/runTest.js",
+    "fixtures:local": "node scripts/generate-local-fixtures.js",
     "lint": "eslint src --ext ts",
     "package": "vsce package --no-dependencies"
   },

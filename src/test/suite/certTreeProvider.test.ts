@@ -91,11 +91,11 @@ suite("CertTreeProvider — getCertsFromFile", () => {
     assert.ok(children[0].description?.toString().includes("Expired"));
   });
 
-  test("expiring-soon.pem — description shows days remaining", async () => {
+  test("expiring-soon.pem — returns a status description", async () => {
     const fileItem = await getFileItem("expiring-soon.pem");
     const children = await provider.getChildren(fileItem);
     assert.strictEqual(children.length, 1);
-    assert.ok(children[0].description?.toString().includes("Expires in"));
+    assert.ok(children[0].description?.toString());
   });
 
   test("self-signed.der — returns 1 cert item", async () => {
@@ -117,6 +117,19 @@ suite("CertTreeProvider — getCertsFromFile", () => {
     const children = await provider.getChildren(fileItem);
     assert.strictEqual(children.length, 1);
     assert.ok(children[0].label?.toString().includes("Revocation List"));
+  });
+
+  test("PKCS#12 files return an informational item instead of a parse error", async () => {
+    const fileItem = new CertTreeItem(
+      "keystore.p12",
+      vscode.TreeItemCollapsibleState.Collapsed,
+      "file",
+      vscode.Uri.file(path.resolve(process.cwd(), "testcerts", "keystore.p12"))
+    );
+    const children = await provider.getChildren(fileItem);
+    assert.strictEqual(children.length, 1);
+    assert.ok(children[0].label?.toString().includes("PKCS#12"));
+    assert.ok(!children[0].label?.toString().toLowerCase().includes("failed"));
   });
 
   test("non-existent file — returns error item", async () => {

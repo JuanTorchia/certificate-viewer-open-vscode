@@ -14,7 +14,7 @@ export interface CertificateValidity {
 }
 
 export interface SubjectAlternativeName {
-  type: "dns" | "ip" | "email" | "uri";
+  type: "dns" | "ip" | "email" | "uri" | "otherName" | "unknown";
   value: string;
 }
 
@@ -23,6 +23,14 @@ export interface CertificateExtension {
   name: string;
   critical: boolean;
   value: string;
+}
+
+export type CertificateFindingSeverity = "error" | "warning" | "info";
+
+export interface CertificateFinding {
+  severity: CertificateFindingSeverity;
+  message: string;
+  rfc?: string;
 }
 
 export interface CertificateInfo {
@@ -37,15 +45,24 @@ export interface CertificateInfo {
   keyUsage: string[];
   extendedKeyUsage: string[];
   extensions: CertificateExtension[];
+  basicConstraints?: {
+    ca: boolean;
+    pathLenConstraint?: number;
+  };
+  nameConstraints?: string;
   signatureAlgorithm: string;
   publicKeyAlgorithm: string;
   publicKeySize?: number;
+  publicKeyCurve?: string;
+  publicKeyExponent?: string;
+  publicKeyPem?: string;
   fingerprints: {
     sha1: string;
     sha256: string;
   };
   isSelfSigned: boolean;
   isCA: boolean;
+  findings: CertificateFinding[];
 }
 
 export type CertificateStatus = "valid" | "expiring-soon" | "expired" | "not-yet-valid";
