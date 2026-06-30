@@ -99,7 +99,13 @@ This project and its documentation include AI-assisted content. Outputs should b
 
 ### 0.3.5
 
-- Bumped package metadata for the expanded certificate/key linting release
+- Hardened certificate, PKCS#7, PKCS#12, PEM, DER, CSR, CRL, and key parsing paths with explicit input and PEM block limits to reduce extension-host DoS risk.
+- Expanded X.509 extension decoding, advisory lint findings, chain-structure checks, Certificate Transparency SCT display, and RFC/NIST/ISO field help in the webview.
+- Added native VS Code Problems diagnostics for certificate lint findings.
+- Added PEM, DER, JWK, public-key, private-key, mixed certificate/key bundle, encrypted private-key metadata, and runtime-dependent ML-DSA key handling.
+- Improved CSR and CRL detail extraction, including public-key metadata, SPKI fingerprints, CRL timing fields, selected CRL extensions, and fingerprints.
+- Clarified PKCS#12 handling in the tree view: `.p12` and `.pfx` files may require an interactive password prompt, so the tree shows an informational item and the editor view performs the actual inspection.
+- Kept dependency management on pnpm, removed the duplicate npm lockfile, and pinned CI to `pnpm@9.15.9` for reproducible release builds.
 
 ### 0.3.4
 
