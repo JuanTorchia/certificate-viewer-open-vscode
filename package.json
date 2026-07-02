@@ -188,7 +188,9 @@
     "fixtures:local": "node scripts/generate-local-fixtures.js",
     "lint": "eslint src --ext ts",
     "package": "vsce package --no-dependencies",
-    "package:contents": "vsce ls --no-dependencies"
+    "package:contents": "vsce ls --no-dependencies",
+    "package:audit": "node scripts/audit-vsix-contents.js",
+    "package:ci": "npm run package && npm run package:audit"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -44,13 +44,15 @@ jobs:
         run: pnpm package
 
       - name: Audit VSIX contents
-        run: |
-          contents="$(pnpm package:contents)"
-          echo "$contents"
-          if echo "$contents" | grep -E '(^|/)scripts/|(^|/)esbuild\.js$|^out/(models|parsers|providers|test|utils|views)/'; then
-            echo "Unexpected development files found in VSIX contents."
-            exit 1
-          fi
+        run: pnpm package:audit
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: certview-vsix
+          path: certview-*.vsix
+          if-no-files-found: error
+          retention-days: 14
 
   publish:
     name: Publish to Marketplace
@@ -77,13 +79,7 @@ jobs:
         run: pnpm package
 
       - name: Audit VSIX contents
-        run: |
-          contents="$(pnpm package:contents)"
-          echo "$contents"
-          if echo "$contents" | grep -E '(^|/)scripts/|(^|/)esbuild\.js$|^out/(models|parsers|providers|test|utils|views)/'; then
-            echo "Unexpected development files found in VSIX contents."
-            exit 1
-          fi
+        run: pnpm package:audit
 
       - name: Publish
         run: |

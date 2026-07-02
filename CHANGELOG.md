@@ -7,3 +7,4 @@ All notable changes to CertView are documented here.
 ### Added
 
 - Added corrupt PKCS#12/PFX parser coverage for wrong passwords, truncated bundles, empty files, and non-PKCS#12 DER inputs.
+- Added a reusable VSIX packaging smoke check that audits package contents and uploads the generated VSIX artifact in CI.
