@@ -18,7 +18,7 @@ Run:
 pnpm install --frozen-lockfile
 pnpm lint
 pnpm test:unit
-pnpm package
+pnpm package:ci
 ```
 
 For UI or VS Code integration changes, also run:
@@ -26,6 +26,8 @@ For UI or VS Code integration changes, also run:
 ```powershell
 pnpm test
 ```
+
+`pnpm package:ci` builds the VSIX and audits its contents. CI runs the same packaging smoke check on PRs and uploads the generated VSIX as a workflow artifact for maintainer review.
 
 ## Development Notes
 
