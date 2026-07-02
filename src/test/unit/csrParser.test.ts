@@ -16,8 +16,11 @@ suite("csrParser", () => {
     assert.strictEqual(parsed.subject.commonName, "csr.example.com");
     assert.ok(parsed.publicKeyAlgorithm.includes("RSA"));
     assert.strictEqual(parsed.publicKeySize, 2048);
+    assert.strictEqual(parsed.publicKeyDisplay, "RSA-2048");
     assert.strictEqual(parsed.publicKeyExponent, "65537");
     assert.ok(parsed.publicKeyPem?.includes("BEGIN PUBLIC KEY"));
+    assert.match(parsed.fingerprints.sha256, /^[A-F0-9:]+$/);
+    assert.notStrictEqual(parsed.fingerprints.sha256, parsed.spkiFingerprints?.sha256);
     assert.match(parsed.spkiFingerprints?.sha256 ?? "", /^[A-F0-9:]+$/);
     assert.ok(parsed.subjectAltNames.includes("DNS:csr.example.com"));
     assert.ok(parsed.subjectAltNames.includes("email:admin@example.com"));

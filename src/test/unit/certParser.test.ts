@@ -169,8 +169,23 @@ suite("certParser — self-signed PEM", () => {
     assert.ok(Array.isArray(certs[0].extendedKeyUsage));
   });
 
+  test("extendedKeyUsage keeps raw keys and carries friendly tooltip details", () => {
+    const cert = makeTestCert({
+      commonName: "eku.example.com",
+      isCA: false,
+      extraExtensions: [{ name: "extKeyUsage", serverAuth: true, clientAuth: true }],
+    });
+    const parsed = parseCertificateFile(cert.pem)[0];
+    assert.deepStrictEqual(parsed.extendedKeyUsage, ["serverAuth", "clientAuth"]);
+    assert.deepStrictEqual(parsed.extendedKeyUsageDetails?.map(item => item.name), ["TLS Web Server Authentication", "TLS Web Client Authentication"]);
+  });
+
   test("has RSA public key", () => {
     assert.ok(certs[0].publicKeyAlgorithm.includes("RSA"));
+  });
+
+  test("includes key size in display name", () => {
+    assert.strictEqual(certs[0].publicKeyDisplay, "RSA-2048");
   });
 
   test("has 2048-bit key", () => {
@@ -258,6 +273,28 @@ suite("certParser — path length constraints", () => {
     const parsedIntermediate = certs.find(cert => cert.subject.commonName === "Intermediate pathLen0");
     assert.ok(parsedIntermediate?.findings.some(finding => finding.severity === "error" && finding.message.includes("Path length constraint 0 is exceeded by 1 subordinate CA")));
   });
+
+  test("adds an informational note for pathLenConstraint zero", () => {
+    const intermediate = makeTestCert({ commonName: "Intermediate pathLen0", isCA: true, pathLenConstraint: 0 });
+    const parsed = parseCertificateFile(intermediate.pem)[0];
+    assert.ok(parsed.findings.some(finding => finding.severity === "info" && finding.message.includes("pathLenConstraint=0")));
+  });
+});
+
+suite("certParser — ASN.1 extension fallback", () => {
+  test("decodes known extensions by OID instead of showing opaque DER", () => {
+    const cert = makeTestCert({
+      commonName: "extensions.example.com",
+      isCA: false,
+      extraExtensions: [
+        { id: "2.5.29.31", critical: false, value: forge.asn1.toDer(forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 6, false, "http://crl.example.com/root.crl")])])])])).getBytes() },
+      ],
+    });
+    const parsed = parseCertificateFile(cert.pem)[0];
+    const extension = parsed.extensions.find(item => item.oid === "2.5.29.31");
+    assert.ok(extension?.value.includes("URI:http://crl.example.com/root.crl"), extension?.value);
+    assert.ok(!extension?.value.startsWith("DER:"), extension?.value);
+  });
 });
 
 suite("certParser — signed certificate timestamps", () => {
@@ -333,6 +370,10 @@ suite("certParser — EC key cert", () => {
 
   test("public key algorithm is EC", () => {
     assert.ok(certs[0].publicKeyAlgorithm.includes("EC"));
+  });
+
+  test("public key display includes curve", () => {
+    assert.strictEqual(certs[0].publicKeyDisplay, "EC-P-256");
   });
 
   test("has no key size (EC uses curve name)", () => {

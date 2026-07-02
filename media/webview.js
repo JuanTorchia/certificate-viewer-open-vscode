@@ -108,6 +108,17 @@
       '</div></div>';
   }
 
+  function ekuTags(items, details) {
+    var byKey = (details || []).reduce(function (acc, item) { acc[item.key] = item; return acc; }, {});
+    return '<div class="row"><div class="tags">' +
+      items.map(function (t) {
+        var detail = byKey[t] || {};
+        var tip = detail.name ? detail.name + (detail.oid ? ' (' + detail.oid + ')' : '') : HELP['cert.extKeyUsage'];
+        return '<span class="tag"' + hint(tip) + '>' + esc(t) + '</span>';
+      }).join('') +
+      '</div></div>';
+  }
+
   function sanTags(sans) {
     return '<div class="row"><div class="tags">' +
       sans.map(function (s) { return '<span class="tag"' + hint(HELP['cert.san']) + '>' + esc(s.type.toUpperCase()) + ': ' + esc(s.value) + '</span>'; }).join('') +
@@ -174,7 +185,7 @@
           row('cert.validity.notBefore', 'Not Before', c.notBefore) + row('cert.validity.notAfter', 'Not After', c.notAfter) + row('cert.validity.status', 'Status', c.relExpiry))
         + (c.sans.length ? section('cert.san', 'Subject Alternative Names', sanTags(c.sans)) : '')
         + (c.keyUsage.length ? section('cert.keyUsage', 'Key Usage', tags('cert.keyUsage', c.keyUsage)) : '')
-        + (c.extKeyUsage.length ? section('cert.extKeyUsage', 'Extended Key Usage', tags('cert.extKeyUsage', c.extKeyUsage)) : '')
+        + (c.extKeyUsage.length ? section('cert.extKeyUsage', 'Extended Key Usage', ekuTags(c.extKeyUsage, c.extKeyUsageDetails)) : '')
         + (c.basicConstraints ? section('cert.basicConstraints', 'Basic Constraints', row('cert.basicConstraints.ca', 'CA Certificate', c.basicConstraints.ca ? 'Yes' : 'No') + row('cert.basicConstraints.pathLen', 'Path Length', c.basicConstraints.pathLenConstraint)) : '')
         + (c.nameConstraints ? section('cert.nameConstraints', 'Name Constraints', row('cert.nameConstraints.value', 'Constraints', c.nameConstraints)) : '')
         + (c.extensions && c.extensions.length ? section('cert.extensions', 'Extensions', extensionRows(c.extensions)) : '')
@@ -182,7 +193,7 @@
         + section('cert.details', 'Details',
           row('cert.serialNumber', 'Serial Number', c.serial)
           + row('cert.version', 'Version', 'v' + c.version)
-          + row('cert.publicKey.summary', 'Public Key', c.pubKey + (c.keySize ? ' ' + c.keySize + ' bit' : ''))
+          + row('cert.publicKey.summary', 'Public Key', c.pubKeyDisplay || (c.pubKey + (c.keySize ? ' ' + c.keySize + ' bit' : '')))
           + row('cert.publicKey.curve', 'Named Curve', c.keyCurve)
           + row('cert.publicKey.exponent', 'Public Exponent', c.keyExponent)
           + row('cert.signatureAlgorithm', 'Signature Algorithm', c.sigAlg)
@@ -217,13 +228,13 @@
       return '<div class="badge-type">CERTIFICATE SIGNING REQUEST</div>'
         + section('csr.subject', 'Subject', nameFields(c.subject))
         + section('csr.publicKey', 'Public Key',
-          row('csr.publicKey', 'Algorithm', c.pubKey + (c.keySize ? ' ' + c.keySize + ' bit' : ''))
+          row('csr.publicKey', 'Algorithm', c.pubKeyDisplay || (c.pubKey + (c.keySize ? ' ' + c.keySize + ' bit' : '')))
           + row('cert.publicKey.curve', 'Named Curve', c.keyCurve)
           + row('cert.publicKey.exponent', 'Public Exponent', c.keyExponent)
           + row('csr.signatureAlgorithm', 'Signature Algorithm', c.sigAlg))
         + (c.sans && c.sans.length ? section('cert.san', 'Subject Alternative Names', tags('cert.san', c.sans)) : '')
         + (c.requestedExtensions && c.requestedExtensions.length ? section('cert.extensions', 'Requested Extensions', tags('cert.extensions', c.requestedExtensions)) : '')
-        + (c.spkiFingerprints ? section('Fingerprints', fpRow('key.spki.sha1', 'SPKI SHA-1', c.spkiFingerprints.sha1) + fpRow('key.spki.sha256', 'SPKI SHA-256', c.spkiFingerprints.sha256)) : '')
+        + section('Fingerprints', fpRow('cert.fingerprint.sha1', 'CSR SHA-1', c.fingerprints.sha1) + fpRow('cert.fingerprint.sha256', 'CSR SHA-256', c.fingerprints.sha256) + (c.spkiFingerprints ? fpRow('key.spki.sha1', 'SPKI SHA-1', c.spkiFingerprints.sha1) + fpRow('key.spki.sha256', 'SPKI SHA-256', c.spkiFingerprints.sha256) : ''))
         + (c.publicKeyPem ? section('cert.publicKey', 'Public Key PEM', row('key.publicKeyPem', 'Public Key PEM', c.publicKeyPem)) : '');
     }
 
@@ -265,7 +276,7 @@
     targetId = targetId || 'app';
     var html = keys.map(function (k) {
       return '<div class="badge-type">' + esc(k.kind.toUpperCase()) + ' KEY</div>'
-        + section('cert.publicKey', 'Public Key', row('key.algorithm', 'Algorithm', k.algorithm + (k.keySize ? ' ' + k.keySize + ' bit' : '') + (k.curve ? ' ' + k.curve : ''))
+        + section('cert.publicKey', 'Public Key', row('key.algorithm', 'Algorithm', k.display || (k.algorithm + (k.keySize ? ' ' + k.keySize + ' bit' : '') + (k.curve ? ' ' + k.curve : '')))
           + row('key.format', 'Format', k.format)
           + row('key.publicExponent', 'Public Exponent', k.publicExponent)
           + row('key.encrypted', 'Encrypted', k.encrypted ? 'Yes' : '')

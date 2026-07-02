@@ -4,7 +4,17 @@ import * as vscode from "vscode";
 import { CertTreeProvider, CertTreeItem } from "../../providers/certTreeProvider";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
-const uri = (f: string): vscode.Uri => vscode.Uri.file(path.join(FIXTURES, f));
+const CERT_FIXTURES = {
+  "self-signed.pem": path.join(FIXTURES, "self-signed.pem"),
+  "chain.pem": path.join(FIXTURES, "chain.pem"),
+  "expired.pem": path.join(FIXTURES, "expired.pem"),
+  "expiring-soon.pem": path.join(FIXTURES, "expiring-soon.pem"),
+  "self-signed.der": path.join(FIXTURES, "self-signed.der"),
+  "bundle.p7b": path.join(FIXTURES, "bundle.p7b"),
+  "test.crl": path.join(FIXTURES, "test.crl"),
+} as const;
+const uri = (f: keyof typeof CERT_FIXTURES): vscode.Uri => vscode.Uri.file(CERT_FIXTURES[f]);
+const MISSING_CERT = path.join(FIXTURES, "missing.pem");
 
 suite("CertTreeProvider — tree view registration", () => {
   test("certview.certExplorer view is registered", async () => {
@@ -60,7 +70,7 @@ suite("CertTreeProvider — getCertsFromFile", () => {
     provider.dispose();
   });
 
-  async function getFileItem(file: string): Promise<CertTreeItem> {
+  async function getFileItem(file: keyof typeof CERT_FIXTURES): Promise<CertTreeItem> {
     return new CertTreeItem(
       file,
       vscode.TreeItemCollapsibleState.Collapsed,
@@ -137,7 +147,7 @@ suite("CertTreeProvider — getCertsFromFile", () => {
       "missing.pem",
       vscode.TreeItemCollapsibleState.Collapsed,
       "file",
-      vscode.Uri.file(path.join(FIXTURES, "missing.pem"))
+      vscode.Uri.file(MISSING_CERT)
     );
     const children = await provider.getChildren(fileItem);
     assert.strictEqual(children.length, 1);

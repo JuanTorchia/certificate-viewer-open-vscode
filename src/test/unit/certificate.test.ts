@@ -9,7 +9,11 @@ import {
 import { parseCertificateFile } from "../../parsers/certParser";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
-const readText = (f: string): string => fs.readFileSync(path.join(FIXTURES, f), "utf-8");
+const CERT_FIXTURES = {
+  "expired.pem": path.join(FIXTURES, "expired.pem"),
+  "self-signed.pem": path.join(FIXTURES, "self-signed.pem"),
+};
+const readText = (f: keyof typeof CERT_FIXTURES): string => fs.readFileSync(CERT_FIXTURES[f], "utf-8");
 
 function makeCert(notBefore: Date, notAfter: Date): CertificateInfo {
   return {
@@ -25,6 +29,7 @@ function makeCert(notBefore: Date, notAfter: Date): CertificateInfo {
     extensions: [],
     signatureAlgorithm: "sha256WithRSAEncryption",
     publicKeyAlgorithm: "RSA",
+    publicKeyDisplay: "RSA-2048",
     publicKeySize: 2048,
     fingerprints: { sha1: "", sha256: "" },
     isSelfSigned: true,

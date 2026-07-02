@@ -25,6 +25,12 @@ export interface CertificateExtension {
   value: string;
 }
 
+export interface ExtendedKeyUsageInfo {
+  key: string;
+  oid?: string;
+  name?: string;
+}
+
 export type CertificateFindingSeverity = "error" | "warning" | "info";
 
 export interface CertificateFinding {
@@ -44,6 +50,7 @@ export interface CertificateInfo {
   subjectAltNames: SubjectAlternativeName[];
   keyUsage: string[];
   extendedKeyUsage: string[];
+  extendedKeyUsageDetails?: ExtendedKeyUsageInfo[];
   extensions: CertificateExtension[];
   basicConstraints?: {
     ca: boolean;
@@ -52,6 +59,7 @@ export interface CertificateInfo {
   nameConstraints?: string;
   signatureAlgorithm: string;
   publicKeyAlgorithm: string;
+  publicKeyDisplay: string;
   publicKeySize?: number;
   publicKeyCurve?: string;
   publicKeyExponent?: string;

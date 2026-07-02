@@ -7,11 +7,16 @@ export interface CsrInfo {
   pem: string;
   subject: CertificateSubject;
   publicKeyAlgorithm: string;
+  publicKeyDisplay: string;
   publicKeySize?: number;
   publicKeyCurve?: string;
   publicKeyExponent?: string;
   publicKeyPem?: string;
   spkiFingerprints?: {
+    sha1: string;
+    sha256: string;
+  };
+  fingerprints: {
     sha1: string;
     sha256: string;
   };
@@ -63,11 +68,13 @@ function parseSingleCsr(pem: string, base64: string): CsrInfo {
     pem,
     subject,
     publicKeyAlgorithm: keyInfo.algorithm,
+    publicKeyDisplay: keyInfo.display,
     publicKeySize: keyInfo.keySize,
     publicKeyCurve: keyInfo.curve,
     publicKeyExponent: keyInfo.exponent,
     publicKeyPem: keyInfo.publicKeyPem,
     spkiFingerprints: keyInfo.spkiFingerprints,
+    fingerprints: { sha1: fingerprint(Buffer.from(der), "sha1"), sha256: fingerprint(Buffer.from(der), "sha256") },
     subjectAltNames: extractCsrSANs(forgeCsr),
     requestedExtensions,
     signatureAlgorithm: detectCsrSignatureAlgorithm(der),
@@ -137,12 +144,12 @@ function extractCsrSubject(der: Uint8Array): CertificateSubject {
   }
 }
 
-function extractCsrPublicKey(der: Uint8Array): { algorithm: string; keySize?: number; curve?: string; exponent?: string; publicKeyPem?: string; spkiFingerprints?: { sha1: string; sha256: string } } {
+function extractCsrPublicKey(der: Uint8Array): { algorithm: string; display: string; keySize?: number; curve?: string; exponent?: string; publicKeyPem?: string; spkiFingerprints?: { sha1: string; sha256: string } } {
   try {
     // Try importing as a public key via spki extraction
     // CertReqInfo: version, subject, subjectPublicKeyInfo
     const certReqInfo = getSequenceContent(der, 0);
-    if (!certReqInfo) return { algorithm: "Unknown" };
+    if (!certReqInfo) return { algorithm: "Unknown", display: "Unknown" };
 
     const versionHeaderSize = getHeaderSize(certReqInfo, 0);
     const versionLen = getElementLength(certReqInfo, 0);
@@ -152,15 +159,15 @@ function extractCsrPublicKey(der: Uint8Array): { algorithm: string; keySize?: nu
     const spkiOffset = subjectOffset + subjectHeaderSize + subjectLen;
 
     const spkiBytes = getElement(certReqInfo, spkiOffset);
-    if (!spkiBytes) return { algorithm: "Unknown" };
+    if (!spkiBytes) return { algorithm: "Unknown", display: "Unknown" };
 
     return keyInfoFromObject(crypto.createPublicKey({ key: Buffer.from(spkiBytes), format: "der", type: "spki" }));
   } catch {
-    return { algorithm: "Unknown" };
+    return { algorithm: "Unknown", display: "Unknown" };
   }
 }
 
-function keyInfoFromObject(key: crypto.KeyObject): { algorithm: string; keySize?: number; curve?: string; exponent?: string; publicKeyPem?: string; spkiFingerprints?: { sha1: string; sha256: string } } {
+function keyInfoFromObject(key: crypto.KeyObject): { algorithm: string; display: string; keySize?: number; curve?: string; exponent?: string; publicKeyPem?: string; spkiFingerprints?: { sha1: string; sha256: string } } {
   const type = (key.asymmetricKeyType ?? "unknown").toUpperCase();
   const details = key.asymmetricKeyDetails ?? {};
   const keySize = "modulusLength" in details ? (details.modulusLength as number) : undefined;
@@ -168,13 +175,25 @@ function keyInfoFromObject(key: crypto.KeyObject): { algorithm: string; keySize?
   const exponent = "publicExponent" in details && details.publicExponent !== undefined ? details.publicExponent.toString() : undefined;
   const exported = key.export({ type: "spki", format: "der" }) as Buffer;
   return {
-    algorithm: curve ? `${type} (${curve})` : type,
+    algorithm: type,
+    display: publicKeyDisplay(type, keySize, curve),
     keySize,
     curve,
     exponent,
     publicKeyPem: key.export({ type: "spki", format: "pem" }).toString(),
     spkiFingerprints: { sha1: fingerprint(exported, "sha1"), sha256: fingerprint(exported, "sha256") },
   };
+}
+
+function publicKeyDisplay(type: string, keySize?: number, curve?: string): string {
+  if (keySize) return `${type}-${keySize}`;
+  if (curve) return `${type}-${shortCurveName(curve)}`;
+  return type;
+}
+
+function shortCurveName(curve: string): string {
+  const match = curve.match(/P-\d+/);
+  return match ? match[0] : curve.split("/")[0].trim();
 }
 
 function extractCsrSANs(csr: forge.pki.CertificateSigningRequest | undefined): string[] {
