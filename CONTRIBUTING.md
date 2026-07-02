@@ -39,6 +39,7 @@ pnpm test
 
 - Explain the user-visible change.
 - Include tests for parser, linter, diagnostics, or rendering behavior when practical.
+- Update `CHANGELOG.md` under `Unreleased` when the PR changes behavior, test coverage, release process, packaging, documentation, or contributor workflow.
 - Mention any unsupported formats or known limitations.
 - Include screenshots for visible webview or sidebar changes.
 - Keep unrelated refactors out of the PR.
