@@ -151,8 +151,9 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
         item.tooltip = `CertView limit is ${MAX_INPUT_BYTES} bytes.`;
         return [item];
       }
-      const parsed = await (this.parsedDocumentCache?.get(uri.toString(), uri.fsPath)
-        ?? Promise.resolve(parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath)));
+      const parsed = this.parsedDocumentCache
+        ? await this.parsedDocumentCache.get(uri.toString(), uri.fsPath)
+        : parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath);
 
       if (parsed.type === "crl") {
         const item = new CertTreeItem("Revocation List", vscode.TreeItemCollapsibleState.None, "field");

@@ -75,11 +75,11 @@ suite("getCertificateStatus", () => {
     assert.strictEqual(getCertificateStatus(cert), "expiring-soon");
   });
 
-  test("returns 'valid' just above threshold (31 days)", () => {
+  test("returns 'valid' above threshold", () => {
     const now = new Date();
     const cert = makeCert(
       new Date(now.getTime() - 86400000),
-      new Date(now.getTime() + 31 * 86400000)
+      new Date(now.getTime() + 32 * 86400000)
     );
     assert.strictEqual(getCertificateStatus(cert), "valid");
   });

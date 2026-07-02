@@ -36,8 +36,9 @@ export class CertDiagnosticsProvider implements vscode.Disposable {
   async updateUri(uri: vscode.Uri): Promise<void> {
     if (!isSupportedUri(uri)) return;
     try {
-      const parsed = await (this.parsedDocumentCache?.get(uri.toString(), uri.fsPath)
-        ?? Promise.resolve(parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath)));
+      const parsed = this.parsedDocumentCache
+        ? await this.parsedDocumentCache.get(uri.toString(), uri.fsPath)
+        : parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath);
       this.setDiagnostics(uri, parsed);
     } catch (error) {
       this.collection.set(uri, [diagnosticFromError(error)]);

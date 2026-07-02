@@ -56,6 +56,19 @@ pnpm test
 
 `pnpm package:ci` builds the VSIX and audits its contents. CI runs the same packaging smoke check on PRs and uploads the generated VSIX as a workflow artifact for maintainer review.
 
+## Pre-Merge Security Review
+
+Before merging, maintainers must review all PR comments, review threads, and automation output from CodeQL, GitHub Advanced Security, GitGuardian, Dependabot, and other security or correctness bots.
+
+Every security or correctness automation comment must be classified before merge:
+
+- Fixed in the PR.
+- False positive, with a short explanation.
+- Accepted low-risk follow-up, with a linked issue.
+- Blocking, meaning the PR should not merge.
+
+Also check GitHub code scanning, secret scanning, and Dependabot alerts for the PR. A green test run is not enough if security or correctness automation left unresolved comments.
+
 ## Development Notes
 
 - Keep parsing offline. Do not add telemetry, network lookups, OCSP calls, CT log fetching, or external validation without an explicit design discussion.
