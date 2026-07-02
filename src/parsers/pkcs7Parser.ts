@@ -1,5 +1,6 @@
 import { derToPem, splitPemBlocks } from "./pemParser";
 import { assertWithinInputLimit, MAX_CERTIFICATES, MAX_PEM_BLOCK_CHARS } from "./limits";
+import { errorWithCause } from "./errors";
 
 /**
  * Extracts DER-encoded X.509 certificates from a PKCS#7 (CMS) SignedData structure.
@@ -46,12 +47,12 @@ export function extractCertsFromPkcs7(input: string | Uint8Array): string[] {
     if (typeof input === "string") {
         const certBlocks = splitPemBlocks(input).filter(b => b.type === "CERTIFICATE");
         if (certBlocks.length > 0) {
-          if (certBlocks.length > MAX_CERTIFICATES) throw new Error(`PKCS#7 file exceeds the maximum of ${MAX_CERTIFICATES} certificates.`);
+          if (certBlocks.length > MAX_CERTIFICATES) throw errorWithCause(`PKCS#7 file exceeds the maximum of ${MAX_CERTIFICATES} certificates.`, err);
           return certBlocks.map(b => b.pem);
       }
     }
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to parse PKCS#7 structure: ${msg}`);
+    throw errorWithCause(`Failed to parse PKCS#7 structure: ${msg}`, err);
   }
 }
 

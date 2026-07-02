@@ -16,6 +16,18 @@ suite("pkcs7Parser — error cases", () => {
   test("returns empty array for empty string", () => {
     assert.deepStrictEqual(extractCertsFromPkcs7(""), []);
   });
+
+  test("preserves original DER parser error as cause when wrapping PKCS#7 errors", () => {
+    assert.throws(
+      () => extractCertsFromPkcs7(Buffer.from([0x31, 0x00])),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Failed to parse PKCS#7 structure:/);
+        assert.ok((error as Error & { cause?: unknown }).cause instanceof Error);
+        return true;
+      }
+    );
+  });
 });
 
 suite("pkcs7Parser — bundle.p7b (PEM-wrapped)", () => {
