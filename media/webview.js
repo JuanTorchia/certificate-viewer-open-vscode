@@ -90,6 +90,13 @@
     return text ? '<span class="help" tabindex="0" role="note" data-help="' + esc(text) + '" title="' + esc(text) + '">?</span>' : '';
   }
 
+  function setReviewedHtml(targetId, html) {
+    // All untrusted values in html must be escaped before reaching this helper.
+    var target = document.getElementById(targetId);
+    if (!target) return;
+    target.replaceChildren(document.createRange().createContextualFragment(html));
+  }
+
   function row(fieldId, label, value) {
     if (arguments.length === 2) { value = label; label = fieldId; fieldId = label; }
     if (value === null || value === undefined || value === '') { return ''; }
@@ -212,7 +219,7 @@
       var panels = certs.map(function (c, i) {
         return '<div class="panel' + (i === active ? ' active' : '') + '" data-p="' + i + '">' + renderCert(c) + '</div>';
       }).join('');
-      document.getElementById(targetId).innerHTML = tabs + panels;
+      setReviewedHtml(targetId, tabs + panels);
       wireActions(targetId, function (button) { active = parseInt(button.dataset.i, 10); render(); });
     }
 
@@ -247,7 +254,7 @@
       var panels = csrs.map(function (c, i) {
         return '<div class="panel' + (i === active ? ' active' : '') + '" data-p="' + i + '">' + renderCsr(c) + '</div>';
       }).join('');
-      document.getElementById('app').innerHTML = tabsHtml + panels;
+      setReviewedHtml('app', tabsHtml + panels);
       wireActions('app', function (button) { active = parseInt(button.dataset.i, 10); render(); });
     }
 
@@ -268,7 +275,7 @@
         + (data.fingerprints ? fpRow('cert.fingerprint.sha1', 'SHA-1', data.fingerprints.sha1) + fpRow('cert.fingerprint.sha256', 'SHA-256', data.fingerprints.sha256) : '')
         + (data.revokedCount >= 0 ? row('crl.revokedEntries', 'Revoked Entries', String(data.revokedCount)) : ''))
       + '<button class="link-btn" data-action="openRaw">Open raw \u2197</button>';
-    document.getElementById('app').innerHTML = html;
+    setReviewedHtml('app', html);
     wireActions('app');
   }
 
@@ -284,7 +291,7 @@
           + (k.spkiFingerprints ? section('Fingerprints', fpRow('key.spki.sha1', 'SPKI SHA-1', k.spkiFingerprints.sha1) + fpRow('key.spki.sha256', 'SPKI SHA-256', k.spkiFingerprints.sha256)) : '')
           + row('key.publicKeyPem', 'Public Key PEM', k.publicKeyPem));
     }).join('');
-    document.getElementById(targetId).innerHTML = html;
+    setReviewedHtml(targetId, html);
     wireActions(targetId);
   }
 
@@ -311,7 +318,7 @@
   }
 
   function renderBundle(data) {
-    document.getElementById('app').innerHTML = '<h2>Certificates</h2><div id="certBundle"></div><h2>Keys</h2><div id="keyBundle"></div>';
+    setReviewedHtml('app', '<h2>Certificates</h2><div id="certBundle"></div><h2>Keys</h2><div id="keyBundle"></div>');
     renderCerts(data.certs, data.warningDays, 'certBundle');
     renderKeys(data.keys, 'keyBundle');
   }
@@ -319,10 +326,9 @@
   // ── Error view ───────────────────────────────────────────────────────────────
 
   function renderError(message, detail) {
-    document.getElementById('app').innerHTML =
-      '<div class="error-card"><div class="error-title">' + esc(message) + '</div>'
+    setReviewedHtml('app', '<div class="error-card"><div class="error-title">' + esc(message) + '</div>'
       + (detail ? '<pre class="error-detail">' + esc(detail) + '</pre>' : '')
-      + '</div>';
+      + '</div>');
   }
 
   // ── Dispatch ─────────────────────────────────────────────────────────────────
