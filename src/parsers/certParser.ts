@@ -11,6 +11,7 @@ import { derToPem, splitPemBlocks } from "./pemParser";
 import { assertWithinInputLimit, MAX_CERTIFICATES } from "./limits";
 import { CT_LOG_NAMES } from "./ctLogs";
 import { addChainFindings, safeCA, validateCertificate } from "./certLinter";
+import { errorWithCause } from "./errors";
 
 const EXTENDED_KEY_USAGE_OID: Record<string, string> = {
   "1.3.6.1.5.5.7.3.1": "TLS Web Server Authentication",
@@ -303,7 +304,7 @@ export function parseCertificateFile(content: string | Uint8Array): CertificateI
       return parseSinglePem(pem);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`Certificate #${idx + 1}: ${msg}`);
+      throw errorWithCause(`Certificate #${idx + 1}: ${msg}`, err);
     }
   });
   addChainFindings(certs);

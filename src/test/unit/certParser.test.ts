@@ -110,6 +110,18 @@ suite("certParser — error cases", () => {
     const hugePem = `-----BEGIN CERTIFICATE-----\n${"A".repeat(6 * 1024 * 1024)}\n-----END CERTIFICATE-----`;
     assert.throws(() => parseCertificateFile(hugePem), /larger than/);
   });
+
+  test("preserves original parser error as cause when wrapping certificate errors", () => {
+    assert.throws(
+      () => parseCertificateFile("-----BEGIN CERTIFICATE-----\naGVsbG8=\n-----END CERTIFICATE-----"),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Certificate #1:/);
+        assert.ok((error as Error & { cause?: unknown }).cause instanceof Error);
+        return true;
+      }
+    );
+  });
 });
 
 suite("certParser — X.509 name parsing", () => {

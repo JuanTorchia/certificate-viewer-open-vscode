@@ -8,6 +8,7 @@ import { parseCsrFile } from "./csrParser";
 import { parseKeyFile, parseKeyPemBlocks } from "./keyParser";
 import { ParsedDocument } from "../models/parsedDocument";
 import { assertWithinInputLimit } from "./limits";
+import { errorWithCause } from "./errors";
 
 /**
  * Parses raw file bytes into a ParsedDocument.
@@ -103,7 +104,12 @@ function parseDer(raw: Uint8Array, filename: string): ParsedDocument {
     } catch (keyError) {
       const certMessage = certificateError instanceof Error ? certificateError.message : String(certificateError);
       const keyMessage = keyError instanceof Error ? keyError.message : String(keyError);
-      throw new Error(`DER data is neither a supported certificate nor key. Certificate parse failed: ${certMessage}. Key parse failed: ${keyMessage}`);
+      const error = errorWithCause(
+        `DER data is neither a supported certificate nor key. Certificate parse failed: ${certMessage}. Key parse failed: ${keyMessage}`,
+        keyError
+      ) as Error & { certificateCause?: unknown };
+      error.certificateCause = certificateError;
+      throw error;
     }
   }
 }
