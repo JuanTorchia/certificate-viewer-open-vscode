@@ -13,6 +13,10 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    ignore:
+      - dependency-name: "@types/vscode"
+        versions:
+          - ">=1.86.0"
     groups:
       production-dependencies:
         dependency-type: "production"
