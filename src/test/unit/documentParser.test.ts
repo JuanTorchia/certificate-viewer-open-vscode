@@ -18,9 +18,12 @@ const CERT_FIXTURES = {
   "self-signed.pem": path.join(FIXTURES, "self-signed.pem"),
   "chain.pem": path.join(FIXTURES, "chain.pem"),
   "expired.pem": path.join(FIXTURES, "expired.pem"),
+  "declared-length-too-long.der": path.join(FIXTURES, "malformed", "declared-length-too-long.der"),
   "self-signed.cer": path.join(FIXTURES, "self-signed.cer"),
   "self-signed-der.cer": path.join(FIXTURES, "self-signed-der.cer"),
   "self-signed.der": path.join(FIXTURES, "self-signed.der"),
+  "truncated-sequence.der": path.join(FIXTURES, "malformed", "truncated-sequence.der"),
+  "unexpected-top-level-tag.der": path.join(FIXTURES, "malformed", "unexpected-top-level-tag.der"),
   "bundle.p7b": path.join(FIXTURES, "bundle.p7b"),
   "bundle-der.p7b": path.join(FIXTURES, "bundle-der.p7b"),
   "test.crl": path.join(FIXTURES, "test.crl"),
@@ -227,6 +230,15 @@ suite("parseDocument — usuario abre archivo incorrecto", () => {
     );
     const doc = parseDocument(privateKey, "key.pem");
     assert.strictEqual(doc.type, "error");
+  });
+
+  test("malformed DER and ASN.1 fixtures return controlled errors", () => {
+    for (const fixture of ["truncated-sequence.der", "declared-length-too-long.der", "unexpected-top-level-tag.der"] as const) {
+      const doc = parseDocument(load(fixture), fixture);
+      assert.strictEqual(doc.type, "error", fixture);
+      assert.ok(doc.message.includes(fixture), doc.message);
+      assert.ok(doc.detail && doc.detail.length > 0, fixture);
+    }
   });
 });
 
