@@ -5,6 +5,7 @@ import { splitPemBlocks } from "./pemParser";
 export interface KeyInfo {
   kind: "public" | "private";
   algorithm: string;
+  display: string;
   keySize?: number;
   curve?: string;
   publicExponent?: string;
@@ -34,6 +35,7 @@ export function parseKeyFile(raw: Uint8Array, filename: string): KeyInfo[] {
     return [{
       kind: "private",
       algorithm: "Encrypted private key",
+      display: "Encrypted private key",
       format,
       encrypted: true,
       note: "CertView does not prompt for private key passwords or decrypt encrypted private keys.",
@@ -67,6 +69,7 @@ function keyInfoFromPemBlock(pem: string, tolerateErrors = false): KeyInfo {
     return {
       kind: "private",
       algorithm: "Encrypted private key",
+      display: "Encrypted private key",
       format: "PEM",
       encrypted: true,
       note: "CertView does not prompt for private key passwords or decrypt encrypted private keys.",
@@ -81,6 +84,7 @@ function keyInfoFromPemBlock(pem: string, tolerateErrors = false): KeyInfo {
     return {
       kind: isPrivate ? "private" : "public",
       algorithm: `Unsupported ${isPrivate ? "private" : "public"} key`,
+      display: `Unsupported ${isPrivate ? "private" : "public"} key`,
       format: "PEM",
       note: error instanceof Error ? error.message : String(error),
     };
@@ -113,6 +117,7 @@ function keyInfoFromObject(key: crypto.KeyObject, format: string): KeyInfo {
   return {
     kind: key.type === "private" ? "private" : "public",
     algorithm: (key.asymmetricKeyType ?? "unknown").toUpperCase(),
+    display: keyDisplay((key.asymmetricKeyType ?? "unknown").toUpperCase(), "modulusLength" in details ? details.modulusLength : undefined, "namedCurve" in details && typeof details.namedCurve === "string" ? friendlyCurveName(details.namedCurve) : undefined),
     keySize: "modulusLength" in details ? details.modulusLength : undefined,
     curve: "namedCurve" in details && typeof details.namedCurve === "string" ? friendlyCurveName(details.namedCurve) : undefined,
     publicExponent: "publicExponent" in details && details.publicExponent !== undefined ? details.publicExponent.toString() : undefined,
@@ -123,6 +128,17 @@ function keyInfoFromObject(key: crypto.KeyObject, format: string): KeyInfo {
       sha256: fingerprint(spkiDer, "sha256"),
     },
   };
+}
+
+function keyDisplay(type: string, keySize?: number, curve?: string): string {
+  if (keySize) return `${type}-${keySize}`;
+  if (curve) return `${type}-${shortCurveName(curve)}`;
+  return type;
+}
+
+function shortCurveName(curve: string): string {
+  const match = curve.match(/P-\d+/);
+  return match ? match[0] : curve.split("/")[0].trim();
 }
 
 function friendlyCurveName(curve: string): string {

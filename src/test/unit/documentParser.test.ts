@@ -265,6 +265,7 @@ suite("parseDocument — usuario abre llaves", () => {
     const doc = parseDocument(Buffer.from(JSON.stringify(jwk)), "key.jwk");
     assert.strictEqual(doc.type, "keys");
     assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].display, "RSA-2048");
     assert.strictEqual(doc.items[0].format, "JWK");
     assert.ok(doc.items[0].spkiFingerprints?.sha256);
   });
@@ -307,6 +308,7 @@ suite("parseDocument — usuario abre llaves", () => {
     assert.strictEqual(doc.type, "keys");
     assert.strictEqual(doc.items[0].kind, "public");
     assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].display, "RSA-2048");
     assert.strictEqual(doc.items[0].format, "DER");
     assert.match(doc.items[0].spkiFingerprints?.sha256 ?? "", /^[A-F0-9:]+$/);
   });
@@ -327,6 +329,7 @@ suite("parseDocument — usuario abre llaves", () => {
     assert.strictEqual(doc.type, "keys");
     assert.strictEqual(doc.items[0].kind, "private");
     assert.strictEqual(doc.items[0].algorithm, "RSA");
+    assert.strictEqual(doc.items[0].display, "RSA-2048");
     assert.strictEqual(doc.items[0].format, "DER");
   });
 

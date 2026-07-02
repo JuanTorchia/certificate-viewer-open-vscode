@@ -5,6 +5,7 @@ import {
   CertificateSubject,
   SubjectAlternativeName,
   CertificateExtension,
+  ExtendedKeyUsageInfo,
 } from "../models/certificate";
 import { derToPem, splitPemBlocks } from "./pemParser";
 import { assertWithinInputLimit, MAX_CERTIFICATES } from "./limits";
@@ -61,6 +62,19 @@ const EXTENDED_KEY_USAGE_OID: Record<string, string> = {
   "1.3.6.1.4.1.311.21.6": "Key Recovery Agent",
   "1.3.6.1.4.1.311.21.19": "Directory Service Email Replication",
   "2.5.29.37.0": "Any Extended Key Usage",
+};
+
+const FORGE_EXTENDED_KEY_USAGE: Record<string, string> = {
+  serverAuth: "1.3.6.1.5.5.7.3.1",
+  clientAuth: "1.3.6.1.5.5.7.3.2",
+  codeSigning: "1.3.6.1.5.5.7.3.3",
+  emailProtection: "1.3.6.1.5.5.7.3.4",
+  ipsecEndSystem: "1.3.6.1.5.5.7.3.5",
+  ipsecTunnel: "1.3.6.1.5.5.7.3.6",
+  ipsecUser: "1.3.6.1.5.5.7.3.7",
+  timeStamping: "1.3.6.1.5.5.7.3.8",
+  ocspSigning: "1.3.6.1.5.5.7.3.9",
+  anyExtendedKeyUsage: "2.5.29.37.0",
 };
 
 const SIGNATURE_ALGORITHM_OID: Record<string, string> = {
@@ -309,6 +323,7 @@ function parseSinglePem(pem: string): CertificateInfo {
   const x509any = x509 as any;
   const keyUsage = parseKeyUsage(parsedExtensions) ?? normalizeKeyUsage(x509any.keyUsage);
   const extendedKeyUsage = parseExtendedKeyUsage(parsedExtensions, x509any.extendedKeyUsage ?? []);
+  const extendedKeyUsageDetails = extendedKeyUsage.map(extendedKeyUsageInfo);
   const publicKeyInfo = getPublicKeyInfo(x509.publicKey);
   const extensions = buildExtensions(x509, parsedExtensions);
   const basicConstraints = parseBasicConstraints(parsedExtensions);
@@ -339,11 +354,13 @@ function parseSinglePem(pem: string): CertificateInfo {
     subjectAltNames: parseForgeAltNames(parsedExtensions, "2.5.29.17") ?? parseSubjectAltNames(x509.subjectAltName ?? ""),
     keyUsage,
     extendedKeyUsage,
+    extendedKeyUsageDetails,
     extensions,
     basicConstraints,
     nameConstraints,
     signatureAlgorithm,
     publicKeyAlgorithm: publicKeyInfo.algorithm,
+    publicKeyDisplay: publicKeyInfo.display,
     publicKeySize: publicKeyInfo.keySize,
     publicKeyCurve: publicKeyInfo.curve,
     publicKeyExponent: publicKeyInfo.exponent,
@@ -379,10 +396,15 @@ function parseExtendedKeyUsage(extensions: ParsedExtension[], nodeEkus: string[]
   if (ext) {
     const names = Object.entries(ext)
       .filter(([key, value]) => value === true && !["critical"].includes(key))
-      .map(([key]) => EXTENDED_KEY_USAGE_OID[key] ?? key);
+      .map(([key]) => key);
     if (names.length) return names;
   }
-  return nodeEkus.map(oid => EXTENDED_KEY_USAGE_OID[oid] ?? OID_NAMES[oid] ?? oid);
+  return nodeEkus;
+}
+
+function extendedKeyUsageInfo(key: string): ExtendedKeyUsageInfo {
+  const oid = FORGE_EXTENDED_KEY_USAGE[key] ?? (EXTENDED_KEY_USAGE_OID[key] ? key : undefined);
+  return { key, oid, name: oid ? EXTENDED_KEY_USAGE_OID[oid] : undefined };
 }
 
 export function parseX509Name(nameStr: string): CertificateSubject {
@@ -525,17 +547,28 @@ function binaryToIp(value: string): string {
   return bytes.toString("hex").toUpperCase();
 }
 
-function getPublicKeyInfo(key: crypto.KeyObject): { algorithm: string; keySize?: number; curve?: string; exponent?: string } {
+function getPublicKeyInfo(key: crypto.KeyObject): { algorithm: string; display: string; keySize?: number; curve?: string; exponent?: string } {
   try {
     const type = (key.asymmetricKeyType ?? "unknown").toUpperCase();
     const details = key.asymmetricKeyDetails ?? {};
     const keySize = "modulusLength" in details ? (details.modulusLength as number) : undefined;
     const curve = "namedCurve" in details && typeof details.namedCurve === "string" ? friendlyCurveName(details.namedCurve) : undefined;
     const exponent = "publicExponent" in details && details.publicExponent !== undefined ? details.publicExponent.toString() : undefined;
-    return { algorithm: curve ? `${type} (${curve})` : type, keySize, curve, exponent };
+    return { algorithm: type, display: publicKeyDisplay(type, keySize, curve), keySize, curve, exponent };
   } catch {
-    return { algorithm: "unknown" };
+    return { algorithm: "unknown", display: "unknown" };
   }
+}
+
+function publicKeyDisplay(type: string, keySize?: number, curve?: string): string {
+  if (keySize) return `${type}-${keySize}`;
+  if (curve) return `${type}-${shortCurveName(curve)}`;
+  return type;
+}
+
+function shortCurveName(curve: string): string {
+  const match = curve.match(/P-\d+/);
+  return match ? match[0] : curve.split("/")[0].trim();
 }
 
 function friendlyCurveName(curve: string): string {
@@ -607,42 +640,67 @@ function extensionOidByName(name?: string): string | undefined {
 
 function describeExtension(ext: forge.pki.Certificate["extensions"][number]): string {
   const anyExt = ext as Record<string, unknown>;
-  if (ext.name === "basicConstraints") {
+  const oid = String(anyExt.id ?? extensionOidByName(ext.name) ?? "");
+  if (oid === "2.5.29.19") {
     return `CA: ${Boolean(anyExt.cA)}${typeof anyExt.pathLenConstraint === "number" ? `, pathLen: ${anyExt.pathLenConstraint}` : ""}`;
   }
-  if (ext.name === "keyUsage") {
+  if (oid === "2.5.29.15") {
     return Object.entries(anyExt).filter(([k, v]) => v === true && k !== "critical").map(([k]) => k).join(", ");
   }
-  if (ext.name === "extKeyUsage") {
-    return Object.entries(anyExt).filter(([k, v]) => v === true && k !== "critical").map(([k]) => EXTENDED_KEY_USAGE_OID[k] ?? k).join(", ");
+  if (oid === "2.5.29.37") {
+    return Object.entries(anyExt).filter(([k, v]) => v === true && k !== "critical").map(([k]) => {
+      const info = extendedKeyUsageInfo(k);
+      return info.name ? `${info.key} (${info.name})` : info.key;
+    }).join(", ");
   }
-  if (ext.name === "subjectAltName" || ext.name === "issuerAltName") {
+  if (oid === "2.5.29.17" || oid === "2.5.29.18") {
     const altNames = anyExt.altNames as Array<{ type?: number; value?: string; ip?: string }> | undefined;
     return altNames?.map(formatGeneralName).join(", ") ?? "";
   }
-  if (ext.name === "subjectKeyIdentifier" && typeof anyExt.subjectKeyIdentifier === "string") {
-    return anyExt.subjectKeyIdentifier.toUpperCase();
+  if (oid === "2.5.29.14") {
+    return typeof anyExt.subjectKeyIdentifier === "string" ? anyExt.subjectKeyIdentifier.toUpperCase() : describeKeyIdentifier(ext.value);
   }
-  if (ext.name === "nameConstraints") {
+  if (oid === "2.5.29.35") {
+    return describeAuthorityKeyIdentifier(ext.value);
+  }
+  if (oid === "2.5.29.30") {
     return describeNameConstraints(ext.value);
   }
-  if (ext.name === "cRLDistributionPoints") {
+  if (oid === "2.5.29.31") {
     return describeUris(ext.value, "URI");
   }
-  if (ext.name === "authorityInfoAccess") {
+  if (oid === "1.3.6.1.5.5.7.1.1") {
     return describeAuthorityInfoAccess(ext.value);
   }
-  if (ext.name === "certificatePolicies") {
+  if (oid === "2.5.29.32") {
     return describeCertificatePolicies(ext.value);
   }
-  if (String(anyExt.id) === "1.3.6.1.5.5.7.1.24") {
+  if (oid === "1.3.6.1.5.5.7.1.24") {
     return describeTlsFeatures(ext.value);
   }
-  if (String(anyExt.id) === "1.3.6.1.4.1.11129.2.4.2") {
+  if (oid === "1.3.6.1.4.1.11129.2.4.2") {
     return describeSignedCertificateTimestamps(ext.value);
   }
   if (ext.value) return describeDerValue(ext.value);
   return JSON.stringify(anyExt, (_key, value) => typeof value === "string" && value.length > 256 ? `${value.slice(0, 256)}…` : value);
+}
+
+function describeKeyIdentifier(value: string): string {
+  const root = fromDer(value);
+  if (!root || typeof root.value !== "string") return hex(value);
+  return Buffer.from(root.value, "binary").toString("hex").toUpperCase().match(/.{2}/g)?.join(":") ?? hex(value);
+}
+
+function describeAuthorityKeyIdentifier(value: string): string {
+  const root = fromDer(value);
+  if (!root || !Array.isArray(root.value)) return hex(value);
+  const parts: string[] = [];
+  for (const node of root.value as forge.asn1.Asn1[]) {
+    if (node.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC && node.type === 0 && typeof node.value === "string") {
+      parts.push(`keyid:${Buffer.from(node.value, "binary").toString("hex").toUpperCase().match(/.{2}/g)?.join(":") ?? ""}`);
+    }
+  }
+  return parts.length ? parts.join(", ") : hex(value);
 }
 
 function fromDer(value: string): forge.asn1.Asn1 | undefined {
@@ -870,7 +928,7 @@ function parseAsn1Extension(node: forge.asn1.Asn1): ParsedExtension | undefined 
     valueNode = values[2];
   }
   if (!valueNode || typeof valueNode.value !== "string") return undefined;
-  const ext: ParsedExtension = { id, name: OID_NAMES[id] ?? extensionNameByOid(id), critical, value: valueNode.value } as ParsedExtension;
+  const ext: ParsedExtension = { id, name: extensionNameByOid(id) ?? OID_NAMES[id] ?? id, critical, value: valueNode.value } as ParsedExtension;
   enrichParsedExtension(ext);
   return ext;
 }

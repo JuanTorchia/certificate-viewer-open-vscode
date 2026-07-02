@@ -12,10 +12,10 @@ Double-click any certificate file and instantly see:
 - **Subject & Issuer** — Common Name, Organization, Country, and more
 - **Validity period** — clear expiry date with a visual status banner (valid / expiring soon / expired)
 - **Fingerprints** — certificate SHA-1/SHA-256 and key SPKI SHA-1/SHA-256 with one-click copy
-- **Public key** — algorithm and key size
+- **Public key** — algorithm with key size or curve, such as `RSA-4096` or `EC-P-256`
 - **Key parameters** — RSA public exponent and EC named curve aliases where the runtime exposes them
 - **Extensions** — SANs, Key Usage, Extended Key Usage, Basic Constraints, Name Constraints, SCTs, and arbitrary critical or noncritical extensions
-- **CSRs and CRLs** — requested CSR SANs/extensions, CSR key fingerprints, and CRL issuer/update/signature metadata
+- **CSRs and CRLs** — CSR fingerprints, requested CSR SANs/extensions, CSR key fingerprints, and CRL issuer/update/signature metadata
 - **Lint findings** — errors, warnings, and informational notices tied to RFC references
 - **RFC tooltips** — hover over sections and fields for relevant RFC guidance
 
@@ -84,7 +84,7 @@ CRL files open with issuer and update timestamps — no more decoding DER by han
 - The viewer performs offline structural and profile lint checks for validity dates, CA/key usage consistency, SAN presence and criticality, extension criticality, and unrecognized extensions.
 - Multi-certificate files are checked for issuer/subject ordering, CA marking, keyCertSign usage, validity nesting, and path length constraints. These checks are not full RFC 5280 certification path validation.
 - Critical and noncritical X.509 v3 extensions are shown with OID, display name, and decoded or hexadecimal value where available. The local OID registry includes common X.520/RDN, PKCS #9, EKU, CA/B Forum policy, public-key algorithm, named-curve, Brainpool, SM2, Microsoft, and Certificate Transparency OIDs. Well-formed Certificate Transparency SCT lists are decoded into SCT entries with version, known log name, log ID, timestamp, and signature algorithm; malformed SCT values fall back to raw DER. The built-in CT log names cover current and recent Google CT log list v3 entries for major operators, including Google, Cloudflare, DigiCert, Sectigo, Let's Encrypt, TrustAsia, Geomys, and IPng Networks.
-- CSR parsing extracts subject fields, requested subjectAltName entries, requested extension names, public-key metadata, public-key PEM, and SPKI fingerprints where supported by the runtime.
+- CSR parsing extracts subject fields, CSR fingerprints, requested subjectAltName entries, requested extension names, public-key metadata, public-key PEM, and SPKI fingerprints where supported by the runtime.
 - CRL parsing extracts issuer, thisUpdate, nextUpdate, revoked-entry count, signature algorithm, selected CRL extensions, and CRL fingerprints.
 - Mixed PEM files that contain both certificate and key blocks are shown as a bundle instead of dropping key blocks.
 - Public and private key views include SHA-1 and SHA-256 fingerprints over the DER-encoded SubjectPublicKeyInfo.

@@ -37,12 +37,13 @@ export function validateCertificate(input: CertificateLintInput): CertificateFin
   if (safeCA(input.x509) && !input.basicConstraints?.ca) findings.push({ severity: "error", message: "Certificate is treated as a CA but Basic Constraints CA=true was not decoded.", rfc: "RFC 5280 §4.2.1.9" });
   if (input.basicConstraints?.ca && !basicConstraintsExtension?.critical) findings.push({ severity: "warning", message: "CA Basic Constraints should be marked critical.", rfc: "RFC 5280 §4.2.1.9" });
   if (input.basicConstraints && !input.basicConstraints.ca && input.basicConstraints.pathLenConstraint !== undefined) findings.push({ severity: "error", message: "Basic Constraints pathLenConstraint is present while CA=false.", rfc: "RFC 5280 §4.2.1.9" });
+  if (input.basicConstraints?.ca && input.basicConstraints.pathLenConstraint === 0) findings.push({ severity: "info", message: "Basic Constraints pathLenConstraint=0 means this CA may issue end-entity certificates but not subordinate CA certificates.", rfc: "RFC 5280 §4.2.1.9" });
   if (input.basicConstraints?.pathLenConstraint !== undefined && !input.keyUsage.includes("keyCertSign")) findings.push({ severity: "warning", message: "Basic Constraints pathLenConstraint is present but keyCertSign is not asserted.", rfc: "RFC 5280 §4.2.1.9" });
   if (input.basicConstraints?.ca && !input.keyUsage.includes("keyCertSign")) findings.push({ severity: "warning", message: "CA certificate lacks keyCertSign key usage.", rfc: "RFC 5280 §4.2.1.3, §4.2.1.9" });
   if (!input.basicConstraints?.ca && input.keyUsage.includes("keyCertSign")) findings.push({ severity: "warning", message: "End-entity certificate includes keyCertSign.", rfc: "RFC 5280 §4.2.1.3" });
   if (input.keyUsage.includes("encipherOnly") && !input.keyUsage.includes("keyAgreement")) findings.push({ severity: "error", message: "encipherOnly is meaningful only when keyAgreement is asserted.", rfc: "RFC 5280 §4.2.1.3" });
   if (input.keyUsage.includes("decipherOnly") && !input.keyUsage.includes("keyAgreement")) findings.push({ severity: "error", message: "decipherOnly is meaningful only when keyAgreement is asserted.", rfc: "RFC 5280 §4.2.1.3" });
-  if (input.extendedKeyUsage.includes("Any Extended Key Usage") && input.extendedKeyUsage.length > 1) findings.push({ severity: "warning", message: "anyExtendedKeyUsage appears with specific extended key usages.", rfc: "RFC 5280 §4.2.1.12" });
+  if (hasAnyExtendedKeyUsage(input.extendedKeyUsage) && input.extendedKeyUsage.length > 1) findings.push({ severity: "warning", message: "anyExtendedKeyUsage appears with specific extended key usages.", rfc: "RFC 5280 §4.2.1.12" });
   if (nameConstraintsExtension && !nameConstraintsExtension.critical) findings.push({ severity: "error", message: "Name Constraints must be marked critical.", rfc: "RFC 5280 §4.2.1.10" });
   if (nameConstraintsExtension && !input.basicConstraints?.ca) findings.push({ severity: "warning", message: "Name Constraints is present on a certificate that is not marked as a CA.", rfc: "RFC 5280 §4.2.1.10" });
   if (aiaExtension?.critical) findings.push({ severity: "error", message: "Authority Information Access must be noncritical.", rfc: "RFC 5280 §4.2.2.1" });
@@ -83,7 +84,11 @@ export function safeCA(x509: crypto.X509Certificate): boolean {
 }
 
 function hasServerAuth(extendedKeyUsage: string[]): boolean {
-  return extendedKeyUsage.includes("serverAuth") || extendedKeyUsage.includes("TLS Web Server Authentication");
+  return extendedKeyUsage.includes("serverAuth") || extendedKeyUsage.includes("1.3.6.1.5.5.7.3.1") || extendedKeyUsage.includes("TLS Web Server Authentication");
+}
+
+function hasAnyExtendedKeyUsage(extendedKeyUsage: string[]): boolean {
+  return extendedKeyUsage.includes("anyExtendedKeyUsage") || extendedKeyUsage.includes("2.5.29.37.0") || extendedKeyUsage.includes("Any Extended Key Usage");
 }
 
 function extensionByOid(extensions: CertificateExtension[], oid: string): CertificateExtension | undefined {
