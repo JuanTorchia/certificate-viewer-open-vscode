@@ -20,6 +20,9 @@ updates:
       - dependency-name: "@types/node"
         versions:
           - ">=19.0.0"
+      - dependency-name: "eslint"
+        versions:
+          - ">=9.0.0"
     groups:
       production-dependencies:
         dependency-type: "production"
