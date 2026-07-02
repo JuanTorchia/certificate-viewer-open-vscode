@@ -2,16 +2,26 @@ import * as vscode from "vscode";
 import { CertEditorProvider } from "./providers/certEditorProvider";
 import { CertTreeProvider } from "./providers/certTreeProvider";
 import { CertDiagnosticsProvider } from "./providers/certDiagnostics";
+import { ParsedDocumentCache, ParsedDocumentStat } from "./parsers/parsedDocumentCache";
 
 export function activate(context: vscode.ExtensionContext): void {
-  const diagnosticsProvider = new CertDiagnosticsProvider();
+  const parsedDocumentCache = new ParsedDocumentCache({
+    stat: async (uriString: string): Promise<ParsedDocumentStat> => {
+      const stat = await vscode.workspace.fs.stat(vscode.Uri.parse(uriString));
+      return { size: stat.size, mtime: stat.mtime };
+    },
+    readFile: async (uriString: string): Promise<Uint8Array> => vscode.workspace.fs.readFile(vscode.Uri.parse(uriString)),
+  });
+  context.subscriptions.push({ dispose: () => parsedDocumentCache.clear() });
+
+  const diagnosticsProvider = new CertDiagnosticsProvider(parsedDocumentCache);
   context.subscriptions.push(diagnosticsProvider);
 
   // Register the custom editor for certificate files
-  context.subscriptions.push(CertEditorProvider.register(context, diagnosticsProvider));
+  context.subscriptions.push(CertEditorProvider.register(context, diagnosticsProvider, parsedDocumentCache));
 
   // Register the sidebar tree view
-  const treeProvider = new CertTreeProvider();
+  const treeProvider = new CertTreeProvider(parsedDocumentCache);
   const treeView = vscode.window.createTreeView("certview.certExplorer", {
     treeDataProvider: treeProvider,
     showCollapseAll: true,

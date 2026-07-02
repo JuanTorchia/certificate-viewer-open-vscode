@@ -5,6 +5,7 @@ import { getCertDisplayName } from "../utils/formatters";
 import { KeyInfo } from "../parsers/keyParser";
 import { parseDocument } from "../parsers/documentParser";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
+import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
 
 type TreeItemType = "file" | "cert" | "key" | "field";
 
@@ -33,7 +34,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
 
   private fileWatcher: vscode.FileSystemWatcher | undefined;
 
-  constructor() {
+  constructor(private readonly parsedDocumentCache?: ParsedDocumentCache) {
     this.registerFileWatcher();
   }
 
@@ -41,13 +42,18 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
     this.fileWatcher = vscode.workspace.createFileSystemWatcher(
       "**/*.{pem,cer,crt,der,p7b,p7c,p7,crl,csr,p12,pfx,key,pub,jwk}"
     );
-    this.fileWatcher.onDidCreate(() => this.refresh());
-    this.fileWatcher.onDidDelete(() => this.refresh());
-    this.fileWatcher.onDidChange(() => this.refresh());
+    this.fileWatcher.onDidCreate(uri => this.refreshUri(uri));
+    this.fileWatcher.onDidDelete(uri => this.refreshUri(uri));
+    this.fileWatcher.onDidChange(uri => this.refreshUri(uri));
   }
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
+  }
+
+  private refreshUri(uri: vscode.Uri): void {
+    this.parsedDocumentCache?.invalidate(uri.toString());
+    this.refresh();
   }
 
   dispose(): void {
@@ -124,8 +130,8 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
         item.tooltip = `CertView limit is ${MAX_INPUT_BYTES} bytes.`;
         return [item];
       }
-      const raw = await vscode.workspace.fs.readFile(uri);
-      const parsed = parseDocument(raw, uri.fsPath);
+      const parsed = await (this.parsedDocumentCache?.get(uri.toString(), uri.fsPath)
+        ?? Promise.resolve(parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath)));
 
       if (parsed.type === "crl") {
         const item = new CertTreeItem("Revocation List", vscode.TreeItemCollapsibleState.None, "field");

@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { CertificateFinding, CertificateFindingSeverity } from "../models/certificate";
 import { ParsedDocument } from "../models/parsedDocument";
 import { parseDocument } from "../parsers/documentParser";
+import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
 
 const SUPPORTED_EXTENSIONS = new Set([
   ".pem", ".cer", ".crt", ".der", ".crl", ".p7b", ".p7c", ".p7", ".csr", ".p12", ".pfx", ".key", ".pub", ".jwk",
@@ -15,7 +16,7 @@ export class CertDiagnosticsProvider implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private readonly timers = new Map<string, NodeJS.Timeout>();
 
-  constructor() {
+  constructor(private readonly parsedDocumentCache?: ParsedDocumentCache) {
     this.disposables.push(
       this.collection,
       vscode.workspace.onDidOpenTextDocument(doc => { void this.updateTextDocument(doc); }),
@@ -35,8 +36,9 @@ export class CertDiagnosticsProvider implements vscode.Disposable {
   async updateUri(uri: vscode.Uri): Promise<void> {
     if (!isSupportedUri(uri)) return;
     try {
-      const raw = await vscode.workspace.fs.readFile(uri);
-      this.setDiagnostics(uri, parseDocument(raw, uri.fsPath));
+      const parsed = await (this.parsedDocumentCache?.get(uri.toString(), uri.fsPath)
+        ?? Promise.resolve(parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath)));
+      this.setDiagnostics(uri, parsed);
     } catch (error) {
       this.collection.set(uri, [diagnosticFromError(error)]);
     }
@@ -70,6 +72,7 @@ export class CertDiagnosticsProvider implements vscode.Disposable {
     if (!isSupportedUri(doc.uri)) return;
     if (doc.isUntitled) return;
     try {
+      this.parsedDocumentCache?.invalidate(doc.uri.toString());
       if (version !== undefined && doc.version !== version) return;
       const text = doc.getText();
       if (Buffer.byteLength(text, "utf8") > LIVE_DIAGNOSTICS_MAX_BYTES) {

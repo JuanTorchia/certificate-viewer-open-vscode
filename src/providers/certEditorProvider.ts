@@ -6,16 +6,25 @@ import { parsePkcs12, Pkcs12PasswordError } from "../parsers/pkcs12Parser";
 import { buildWebviewHtml } from "../views/certWebview";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
 import { CertDiagnosticsProvider } from "./certDiagnostics";
+import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
 
 export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = "certview.certEditor";
 
-  constructor(private readonly context: vscode.ExtensionContext, private readonly diagnosticsProvider?: CertDiagnosticsProvider) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly diagnosticsProvider?: CertDiagnosticsProvider,
+    private readonly parsedDocumentCache?: ParsedDocumentCache
+  ) {}
 
-  public static register(context: vscode.ExtensionContext, diagnosticsProvider?: CertDiagnosticsProvider): vscode.Disposable {
+  public static register(
+    context: vscode.ExtensionContext,
+    diagnosticsProvider?: CertDiagnosticsProvider,
+    parsedDocumentCache?: ParsedDocumentCache
+  ): vscode.Disposable {
     return vscode.window.registerCustomEditorProvider(
       CertEditorProvider.viewType,
-      new CertEditorProvider(context, diagnosticsProvider),
+      new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache),
       {
         webviewOptions: { retainContextWhenHidden: true },
         supportsMultipleEditorsPerDocument: false,
@@ -74,14 +83,15 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
         detail: `File is ${stat.size} bytes; CertView limit is ${MAX_INPUT_BYTES} bytes to protect the VS Code extension host from unbounded parsing.`,
       };
     }
-    const raw = await vscode.workspace.fs.readFile(uri);
     const ext = path.extname(uri.fsPath).toLowerCase();
 
     if (ext === ".p12" || ext === ".pfx") {
+      const raw = await vscode.workspace.fs.readFile(uri);
       return this.parsePkcs12File(raw, uri.fsPath);
     }
 
-    return parseDocument(raw, uri.fsPath);
+    return this.parsedDocumentCache?.get(uri.toString(), uri.fsPath)
+      ?? parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath);
   }
 
   private async parsePkcs12File(raw: Uint8Array, fsPath: string): Promise<ParsedDocument> {
