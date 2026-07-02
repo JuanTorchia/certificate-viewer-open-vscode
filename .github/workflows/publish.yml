@@ -40,6 +40,18 @@ jobs:
       - name: Integration Tests (Electron)
         run: xvfb-run -a pnpm test
 
+      - name: Package VSIX
+        run: pnpm package
+
+      - name: Audit VSIX contents
+        run: |
+          contents="$(pnpm package:contents)"
+          echo "$contents"
+          if echo "$contents" | grep -E '(^|/)scripts/|(^|/)esbuild\.js$|^out/(models|parsers|providers|test|utils|views)/'; then
+            echo "Unexpected development files found in VSIX contents."
+            exit 1
+          fi
+
   publish:
     name: Publish to Marketplace
     needs: build
@@ -60,6 +72,18 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Package VSIX
+        run: pnpm package
+
+      - name: Audit VSIX contents
+        run: |
+          contents="$(pnpm package:contents)"
+          echo "$contents"
+          if echo "$contents" | grep -E '(^|/)scripts/|(^|/)esbuild\.js$|^out/(models|parsers|providers|test|utils|views)/'; then
+            echo "Unexpected development files found in VSIX contents."
+            exit 1
+          fi
 
       - name: Publish
         run: |

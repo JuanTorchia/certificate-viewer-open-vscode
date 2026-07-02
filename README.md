@@ -1,5 +1,11 @@
 # X509 Certificate Utility
 
+[![CI](https://github.com/JuanTorchia/certificate-viewer-open-vscode/actions/workflows/publish.yml/badge.svg)](https://github.com/JuanTorchia/certificate-viewer-open-vscode/actions/workflows/publish.yml)
+[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/gmm.certview?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=gmm.certview)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/gmm.certview)](https://marketplace.visualstudio.com/items?itemName=gmm.certview)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Offline](https://img.shields.io/badge/offline-no%20telemetry-brightgreen)](#requirements)
+
 **Stop opening terminals just to inspect a certificate.**
 View X.509 certificates, keystores, and signing requests directly inside VS Code — no OpenSSL commands needed.
 
@@ -60,11 +66,20 @@ CRL files open with issuer and update timestamps — no more decoding DER by han
 ## Usage
 
 - **Open a file** → the viewer opens automatically on double-click
-- **Right-click** any supported file → *X509 Certificate Utility: Open*
+- **Right-click** any supported file → *CertView: Open Certificate*
 - **Certificates panel** in the Explorer sidebar lists all cert files in the workspace
 - **Hover** sections or fields in the certificate view to see RFC context
 - **Hover or focus** the `?` indicator beside fields and sections to see RFC context inside the webview
 - **Copy lint report** from the validation banner for JSON output suitable for issue comments or reviews
+
+## Project status and collaboration
+
+CertView is open to focused contributions in parsing, diagnostics, webview UX, test fixtures, documentation, and Marketplace presentation.
+
+- See [ROADMAP.md](ROADMAP.md) for planned work and help-wanted areas.
+- See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+- See [SECURITY.md](SECURITY.md) before reporting parser, rendering, denial-of-service, or secret-handling concerns.
+- Please do not attach private keys, production certificates, customer certificates, tokens, passwords, or proprietary PKI material to public issues.
 
 ## Settings
 

@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest a product, parser, UX, or documentation improvement.
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What certificate workflow is hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful version of the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Parser
+        - Webview
+        - Explorer tree
+        - Diagnostics
+        - Documentation
+        - Marketplace
+        - Tests
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Security boundary
+      options:
+        - label: This feature can work offline.
+        - label: This feature does not require telemetry.
+        - label: This feature does not require private-key decryption.

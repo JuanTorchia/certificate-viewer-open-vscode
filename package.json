@@ -5,10 +5,15 @@
   "version": "0.3.6",
   "publisher": "gmm",
   "license": "MIT",
+  "packageManager": "pnpm@9.15.9",
   "repository": {
     "type": "git",
     "url": "https://github.com/JuanTorchia/certificate-viewer-open-vscode.git"
   },
+  "bugs": {
+    "url": "https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues"
+  },
+  "homepage": "https://github.com/JuanTorchia/certificate-viewer-open-vscode#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -18,8 +23,19 @@
     "Visualization"
   ],
   "keywords": [
-    "utility",
+    "x509",
+    "certificate",
     "certificates",
+    "tls",
+    "ssl",
+    "pki",
+    "pem",
+    "csr",
+    "crl",
+    "pkcs12",
+    "pfx",
+    "p7b",
+    "security",
     "devtools"
   ],
   "activationEvents": [],
@@ -162,7 +178,8 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm bundle",
-    "bundle": "node esbuild.js && node -e \"require('fs').cpSync('src/test/fixtures','out/test/fixtures',{recursive:true,force:true})\"",
+    "clean": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\"",
+    "bundle": "pnpm clean && node esbuild.js",
     "compile": "tsc -p ./ && node -e \"require('fs').cpSync('src/test/fixtures','out/test/fixtures',{recursive:true,force:true})\"",
     "watch": "tsc -watch -p ./",
     "pretest": "pnpm compile",
@@ -170,7 +187,8 @@
     "test": "node ./out/test/runTest.js",
     "fixtures:local": "node scripts/generate-local-fixtures.js",
     "lint": "eslint src --ext ts",
-    "package": "vsce package --no-dependencies"
+    "package": "vsce package --no-dependencies",
+    "package:contents": "vsce ls --no-dependencies"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
