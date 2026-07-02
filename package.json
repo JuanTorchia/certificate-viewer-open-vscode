@@ -202,7 +202,7 @@
     "esbuild": "^0.28.1",
     "eslint": "^8.56.0",
     "mocha": "^11.7.6",
-    "typescript": "^5.3.3"
+    "typescript": "^6.0.3"
   },
   "dependencies": {
     "node-forge": "^1.4.0"
