@@ -90,8 +90,11 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
       return this.parsePkcs12File(raw, uri.fsPath);
     }
 
-    return this.parsedDocumentCache?.get(uri.toString(), uri.fsPath)
-      ?? parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath);
+    if (this.parsedDocumentCache) {
+      return await this.parsedDocumentCache.get(uri.toString(), uri.fsPath);
+    }
+
+    return parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath);
   }
 
   private async parsePkcs12File(raw: Uint8Array, fsPath: string): Promise<ParsedDocument> {
