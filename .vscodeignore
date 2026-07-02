@@ -24,4 +24,5 @@ SECURITY.md
 tsconfig.json
 tsconfig.test.json
 pnpm-lock.yaml
+pnpm-workspace.yaml
 *.vsix
