@@ -15,12 +15,12 @@ node_modules/**
 scripts/**
 images/icon.svg
 esbuild.js
+eslint.config.js
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 ROADMAP.md
 SECURITY.md
 .gitignore
-.eslintrc.json
 tsconfig.json
 tsconfig.test.json
 pnpm-lock.yaml
