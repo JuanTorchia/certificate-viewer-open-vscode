@@ -13,3 +13,4 @@ All notable changes to CertView are documented here.
 - Added a bounded parsed document cache for repeated certificate reads across the editor, explorer, and diagnostics.
 - Added workspace scan limits and exclude settings for the Certificates explorer.
 - Added a pre-merge security review checklist for CodeQL, GitHub Advanced Security, GitGuardian, Dependabot, and related automation comments.
+- Added webview rendering hardening tests for hostile certificate, error, and key fields.
