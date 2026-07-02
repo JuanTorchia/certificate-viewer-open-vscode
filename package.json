@@ -1,7 +1,7 @@
 {
   "name": "certview",
-  "displayName": "X509 Certificate Utility",
-  "description": "A developer tool for inspecting X509 certificate files.",
+  "displayName": "CertView: X509 Certificate Utility",
+  "description": "Inspect X.509 certificates, CSRs, CRLs, PKCS#7 bundles, PKCS#12/PFX files, and keys locally in VS Code.",
   "version": "0.3.6",
   "publisher": "gmm",
   "license": "MIT",
@@ -190,7 +190,8 @@
     "package": "vsce package --no-dependencies",
     "package:contents": "vsce ls --no-dependencies",
     "package:audit": "node scripts/audit-vsix-contents.js",
-    "package:ci": "npm run package && npm run package:audit"
+    "marketplace:audit": "node scripts/audit-marketplace-readiness.js",
+    "package:ci": "npm run marketplace:audit && npm run package && npm run package:audit"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,4 +1,4 @@
-# X509 Certificate Utility
+# CertView: X.509 Certificate Utility
 
 [![CI](https://github.com/JuanTorchia/certificate-viewer-open-vscode/actions/workflows/publish.yml/badge.svg)](https://github.com/JuanTorchia/certificate-viewer-open-vscode/actions/workflows/publish.yml)
 [![Marketplace](https://img.shields.io/visual-studio-marketplace/v/gmm.certview?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=gmm.certview)
@@ -6,10 +6,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Offline](https://img.shields.io/badge/offline-no%20telemetry-brightgreen)](#requirements)
 
-**Stop opening terminals just to inspect a certificate.**
-View X.509 certificates, keystores, and signing requests directly inside VS Code — no OpenSSL commands needed.
+**Inspect certificates without leaving VS Code.**
+CertView helps you quickly answer who issued a certificate, when it expires, which names it covers, whether a chain is ordered as expected, and what fingerprints you need to copy for reviews or incidents.
 
-![Certificate details view](https://raw.githubusercontent.com/JuanTorchia/certview-assets/main/preview-cert-details.png)
+It works offline, does not include telemetry, and does not send certificate, key, or PKI material outside your machine. No external tools, OpenSSL install, account, or network access required.
+
+![Expiry warning banner](images/preview-expiry-warning.png)
+
+## Install
+
+- Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gmm.certview).
+- Or search for **X509 Certificate Utility** in the VS Code Extensions view.
+- Open any supported certificate file to inspect it directly in the editor.
 
 ## What it does
 
@@ -24,30 +32,31 @@ Double-click any certificate file and instantly see:
 - **CSRs and CRLs** — CSR fingerprints, requested CSR SANs/extensions, CSR key fingerprints, and CRL issuer/update/signature metadata
 - **Lint findings** — errors, warnings, and informational notices tied to RFC references
 - **RFC tooltips** — hover over sections and fields for relevant RFC guidance
+- **Local format coverage** — X.509 certificates, chains, CSRs, CRLs, PKCS#7 bundles, PKCS#12/PFX keystores, and public/private key files
 
 ## Expiry warnings at a glance
 
 Never get caught by a surprise certificate expiration. Files expiring within 30 days get a yellow warning banner; expired certificates show a red one.
 
-![Expiry warning banner](https://raw.githubusercontent.com/JuanTorchia/certview-assets/main/preview-expiry-warning.png)
+![Certificate details view](images/preview-cert-details.png)
 
 ## Certificate chains
 
 Multi-certificate files (chains, P7B bundles) are displayed as tabbed panels — one tab per certificate in the chain.
 
-![Certificate chain with tabs](https://raw.githubusercontent.com/JuanTorchia/certview-assets/main/preview-chain-bundle.png)
+![Certificate chain with tabs](images/preview-chain-bundle.png)
 
 ## CA certificates
 
 Self-signed and CA certificates are clearly identified.
 
-![CA certificate view](https://raw.githubusercontent.com/JuanTorchia/certview-assets/main/preview-ca-certificate.png)
+![CA certificate view](images/preview-ca-certificate.png)
 
 ## Certificate Revocation Lists
 
 CRL files open with issuer and update timestamps — no more decoding DER by hand.
 
-![CRL viewer](https://raw.githubusercontent.com/JuanTorchia/certview-assets/main/preview-crl-viewer.png)
+![CRL viewer](images/preview-crl-viewer.png)
 
 ## Supported formats
 
@@ -107,8 +116,6 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 - Algorithm support is runtime-dependent. CertView displays algorithms that Node.js can parse from X.509 SubjectPublicKeyInfo, PKCS#8, SPKI, or JWK inputs. RSA, RSA-PSS, EC, Ed25519, Ed448, and runtime-supported ML-DSA keys are covered by tests or guarded runtime checks. ML-KEM support depends on the extension host's Node.js/OpenSSL key import support and is not guaranteed on older runtimes.
 - Encrypted private keys are detected but not decrypted; CertView does not prompt for private-key passwords.
 - Lint findings are advisory. They do not establish certificate trust, revocation status, WebPKI compliance, RFC 5280 path validation, FIPS compliance, Common Criteria conformance, or organizational policy compliance.
-
-This project and its documentation include AI-assisted content. Outputs should be reviewed by a qualified security, PKI, and compliance professional before use as compliance evidence, audit evidence, legal submission, accreditation material, or external assurance material.
 
 ## Release Notes
 
