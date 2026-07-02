@@ -11,3 +11,4 @@ All notable changes to CertView are documented here.
 - Added a contributor project map that explains repository areas, ownership, and validation paths.
 - Added automated Marketplace readiness checks for README copy, screenshots, manifest metadata, and risky security claims.
 - Added a bounded parsed document cache for repeated certificate reads across the editor, explorer, and diagnostics.
+- Added workspace scan limits and exclude settings for the Certificates explorer.

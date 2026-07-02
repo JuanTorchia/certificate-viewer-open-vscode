@@ -172,6 +172,20 @@
           ],
           "default": "summary",
           "description": "Default view when opening a certificate"
+        },
+        "certview.workspace.maxFiles": {
+          "type": "number",
+          "default": 200,
+          "minimum": 1,
+          "description": "Maximum number of certificate-related files to show in the Certificates explorer. CertView asks VS Code for one extra result to detect when the scan was limited."
+        },
+        "certview.workspace.excludeGlobs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional VS Code glob patterns to exclude from the Certificates explorer scan. Use forward slashes in globs, for example **/dist/** or **/vendor/**."
         }
       }
     }
