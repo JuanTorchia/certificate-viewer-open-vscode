@@ -10,6 +10,32 @@ Thanks for helping improve CertView. This project is useful only if certificate 
 - Improve VS Code UX for the tree view, diagnostics, and copy actions.
 - Improve documentation, screenshots, examples, or Marketplace copy.
 
+## Project Map
+
+Use this map to find the right part of the project before opening a PR.
+
+- `src/parsers`: file parsing for certificates, CSRs, CRLs, PKCS#7, PKCS#12/PFX, private/public keys, JWKs, limits, and parser errors.
+- `src/models`: normalized certificate and parsed-document shapes shared by parsers, providers, tests, and views.
+- `src/providers`: VS Code integration for the custom editor, explorer tree, diagnostics, and commands.
+- `src/views`: webview HTML assembly and data passed into the certificate viewer.
+- `media`: browser-side webview JavaScript loaded by the VS Code custom editor.
+- `src/test/unit`: fast tests for parsers, models, formatting, lint findings, and document parsing.
+- `src/test/suite`: VS Code integration tests for custom editor behavior, tree provider behavior, diagnostics, and open behavior.
+- `src/test/fixtures`: synthetic certificates, malformed files, bundles, CRLs, and keys used by tests. Do not add private or production material.
+- `scripts`: maintainer and fixture helpers, including local fixture generation and VSIX package auditing.
+- `.github`: issue templates, pull request template, Dependabot, CodeQL, CI, packaging, and publish automation.
+- `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `SECURITY.md`, `CONTRIBUTING.md`: user-facing and contributor-facing project documentation.
+- `.vscodeignore`, `package.json`, `esbuild.js`, `pnpm-lock.yaml`: extension packaging, scripts, dependency policy, and bundle configuration.
+
+## Contribution Paths
+
+- Parser or fixture changes: update `src/parsers`, `src/test/unit`, and `src/test/fixtures`; run `pnpm test:unit`.
+- Webview UI changes: update `src/views` or `media`; run `pnpm test` and include screenshots when the visible UI changes.
+- VS Code behavior changes: update `src/providers` or `src/extension.ts`; run `pnpm test`.
+- Diagnostics or linting changes: update provider/linter code and focused unit tests; run `pnpm test:unit` and `pnpm test` when diagnostics are visible in VS Code.
+- Packaging, CI, or release changes: update `.github`, `scripts`, `package.json`, or `.vscodeignore`; run `pnpm package:ci`.
+- Documentation-only changes: update the relevant Markdown file and `CHANGELOG.md` when the change affects contributor workflow, release process, or user-visible guidance.
+
 ## Before Opening a PR
 
 Run:
