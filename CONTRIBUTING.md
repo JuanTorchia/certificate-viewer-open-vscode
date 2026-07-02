@@ -34,7 +34,8 @@ Use this map to find the right part of the project before opening a PR.
 - VS Code behavior changes: update `src/providers` or `src/extension.ts`; run `pnpm test`.
 - Diagnostics or linting changes: update provider/linter code and focused unit tests; run `pnpm test:unit` and `pnpm test` when diagnostics are visible in VS Code.
 - Packaging, CI, or release changes: update `.github`, `scripts`, `package.json`, or `.vscodeignore`; run `pnpm package:ci`.
-- Documentation-only changes: update the relevant Markdown file and `CHANGELOG.md` when the change affects contributor workflow, release process, or user-visible guidance.
+- Marketplace or README changes: update screenshots or copy, keep security claims conservative, and run `pnpm marketplace:audit`.
+- Documentation-only changes: update the relevant Markdown file and `CHANGELOG.md` when the change affects contributor workflow, release process, Marketplace presentation, or user-visible guidance.
 
 ## Before Opening a PR
 
@@ -62,6 +63,7 @@ pnpm test
 - Do not add private keys, production certificates, customer certificates, or secrets to fixtures.
 - Prefer generated local fixtures or clearly disposable test certificates.
 - Keep UI copy precise. CertView provides advisory linting, not trust validation or compliance certification.
+- This project and its documentation include AI-assisted content. Review generated or AI-assisted content before using it as compliance evidence, audit evidence, legal submission, accreditation material, or external assurance material.
 
 ## Pull Request Expectations
 

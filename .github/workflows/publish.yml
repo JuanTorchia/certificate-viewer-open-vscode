@@ -34,6 +34,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Audit Marketplace readiness
+        run: pnpm marketplace:audit
+
       - name: Unit Tests (no Electron)
         run: node ./out/test/unit/index.js
 
