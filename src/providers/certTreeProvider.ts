@@ -6,6 +6,7 @@ import { KeyInfo } from "../parsers/keyParser";
 import { parseDocument } from "../parsers/documentParser";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
 import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
+import { buildWorkspaceExcludeGlob, limitWorkspaceScanResults, normalizeWorkspaceScanSettings } from "./workspaceScan";
 
 type TreeItemType = "file" | "cert" | "key" | "field";
 
@@ -86,12 +87,19 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
   }
 
   private async getCertFiles(): Promise<CertTreeItem[]> {
-    const uris = await vscode.workspace.findFiles(
+    const workspaceConfig = vscode.workspace.getConfiguration("certview.workspace");
+    const scanSettings = normalizeWorkspaceScanSettings({
+      maxFiles: workspaceConfig.get("maxFiles"),
+      excludeGlobs: workspaceConfig.get("excludeGlobs"),
+    });
+    const foundUris = await vscode.workspace.findFiles(
       "**/*.{pem,cer,crt,der,p7b,p7c,p7,crl,csr,p12,pfx,key,pub,jwk}",
-      "**/node_modules/**"
+      buildWorkspaceExcludeGlob(scanSettings.excludeGlobs),
+      scanSettings.maxFiles + 1
     );
+    const { files: uris, limitReached } = limitWorkspaceScanResults(foundUris, scanSettings.maxFiles);
 
-    return uris
+    const items = uris
       .sort((a, b) => a.fsPath.localeCompare(b.fsPath))
       .map(uri => {
         const item = new CertTreeItem(
@@ -111,6 +119,19 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
         item.iconPath = new vscode.ThemeIcon("file");
         return item;
       });
+
+    if (limitReached) {
+      const item = new CertTreeItem(
+        `Workspace scan limited to ${scanSettings.maxFiles} files`,
+        vscode.TreeItemCollapsibleState.None,
+        "field"
+      );
+      item.iconPath = new vscode.ThemeIcon("warning");
+      item.tooltip = "Adjust certview.workspace.maxFiles or certview.workspace.excludeGlobs to control the Certificates explorer scan.";
+      items.push(item);
+    }
+
+    return items;
   }
 
   private async getCertsFromFile(uri: vscode.Uri): Promise<CertTreeItem[]> {

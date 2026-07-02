@@ -72,6 +72,15 @@ CRL files open with issuer and update timestamps — no more decoding DER by han
 | `.key` `.pub` | PEM or DER public keys and unencrypted private keys, plus encrypted private-key detection without decryption prompts |
 | `.jwk` | JSON Web Key public keys |
 
+## Workspace scanning
+
+The Certificates panel scans supported files in the current workspace. Large repositories can tune that scan without changing project files:
+
+- `certview.workspace.maxFiles` limits how many certificate-related files the panel shows before adding a limit notice.
+- `certview.workspace.excludeGlobs` adds VS Code glob patterns to skip generated or vendor folders, such as `**/dist/**`, `**/build/**`, or `**/vendor/**`.
+
+VS Code glob patterns use `/` as the path separator, including on Windows.
+
 ## Usage
 
 - **Open a file** → the viewer opens automatically on double-click
@@ -96,6 +105,8 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 | --- | --- | --- |
 | `certview.warningDaysBeforeExpiry` | `30` | Days before expiry to show the warning banner |
 | `certview.showExpiredWarning` | `true` | Highlight expired certificates |
+| `certview.workspace.maxFiles` | `200` | Maximum certificate-related files shown in the Certificates panel before a limit notice appears |
+| `certview.workspace.excludeGlobs` | `[]` | Extra VS Code glob patterns to skip during Certificates panel scans |
 
 ## Requirements
 
