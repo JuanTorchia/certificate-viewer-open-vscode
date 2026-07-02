@@ -17,6 +17,9 @@ updates:
       - dependency-name: "@types/vscode"
         versions:
           - ">=1.86.0"
+      - dependency-name: "@types/node"
+        versions:
+          - ">=19.0.0"
     groups:
       production-dependencies:
         dependency-type: "production"
