@@ -1,28 +1,4 @@
-const { execFileSync } = require("node:child_process");
-const path = require("node:path");
-
-const vsceBin = path.resolve(
-  __dirname,
-  "..",
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "vsce.cmd" : "vsce"
-);
-
-const root = path.resolve(__dirname, "..");
-const contents = process.platform === "win32"
-  ? execFileSync("cmd.exe", ["/d", "/c", vsceBin, "ls", "--no-dependencies"], {
-    cwd: root,
-    encoding: "utf8",
-    timeout: 30000,
-  })
-  : execFileSync(vsceBin, ["ls", "--no-dependencies"], {
-    cwd: root,
-    encoding: "utf8",
-    timeout: 30000,
-  });
-
-process.stdout.write(contents);
+const { listFiles, PackageManager } = require("@vscode/vsce");
 
 const unexpectedPatterns = [
   /(^|\/)scripts\//,
@@ -33,15 +9,25 @@ const unexpectedPatterns = [
   /(^|\/)testcerts\//,
 ];
 
-const unexpected = contents
-  .split(/\r?\n/)
+async function main() {
+  const files = await listFiles({ packageManager: PackageManager.None });
+  const contents = `${files.join("\n")}\n`;
+  process.stdout.write(contents);
+
+  const unexpected = files
   .filter(Boolean)
   .filter(file => unexpectedPatterns.some(pattern => pattern.test(file)));
 
-if (unexpected.length > 0) {
-  console.error("Unexpected development or test files found in VSIX contents:");
-  for (const file of unexpected) {
-    console.error(`- ${file}`);
+  if (unexpected.length > 0) {
+    console.error("Unexpected development or test files found in VSIX contents:");
+    for (const file of unexpected) {
+      console.error(`- ${file}`);
+    }
+    process.exit(1);
   }
-  process.exit(1);
 }
+
+main().catch(error => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});
