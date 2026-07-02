@@ -10,8 +10,11 @@ const CERT_FIXTURES = {
   "chain.pem": path.join(FIXTURES, "chain.pem"),
   "ec-key.pem": path.join(FIXTURES, "ec-key.pem"),
   "expired.pem": path.join(FIXTURES, "expired.pem"),
+  "declared-length-too-long.der": path.join(FIXTURES, "malformed", "declared-length-too-long.der"),
   "self-signed.der": path.join(FIXTURES, "self-signed.der"),
   "self-signed.pem": path.join(FIXTURES, "self-signed.pem"),
+  "truncated-sequence.der": path.join(FIXTURES, "malformed", "truncated-sequence.der"),
+  "unexpected-top-level-tag.der": path.join(FIXTURES, "malformed", "unexpected-top-level-tag.der"),
 };
 const readText = (f: keyof typeof CERT_FIXTURES): string => fs.readFileSync(CERT_FIXTURES[f], "utf-8");
 const readBin = (f: keyof typeof CERT_FIXTURES): Buffer => fs.readFileSync(CERT_FIXTURES[f]);
@@ -121,6 +124,21 @@ suite("certParser — error cases", () => {
         return true;
       }
     );
+  });
+
+  test("throws controlled errors for malformed DER fixtures", () => {
+    for (const fixture of ["truncated-sequence.der", "declared-length-too-long.der", "unexpected-top-level-tag.der"] as const) {
+      assert.throws(
+        () => parseCertificateFile(readBin(fixture)),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, /Certificate #1:/);
+          assert.ok((error as Error & { cause?: unknown }).cause instanceof Error);
+          return true;
+        },
+        fixture
+      );
+    }
   });
 });
 
