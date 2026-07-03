@@ -78,6 +78,24 @@ Also check GitHub code scanning, secret scanning, and Dependabot alerts for the 
 - Keep UI copy precise. CertView provides advisory linting, not trust validation or compliance certification.
 - This project and its documentation include AI-assisted content. Review generated or AI-assisted content before using it as compliance evidence, audit evidence, legal submission, accreditation material, or external assurance material.
 
+## Compatibility Policy
+
+CertView currently supports VS Code `^1.85.0` and keeps its extension API usage aligned with that baseline. Do not raise `engines.vscode` only to satisfy dependency updates or newer type packages.
+
+When changing the VS Code compatibility baseline, update and validate these together:
+
+- `package.json` `engines.vscode`
+- `@types/vscode`
+- custom editor, tree view, diagnostics, and workspace API usage
+- README requirements and Marketplace-facing copy when user-visible
+- CI, package, and integration-test coverage
+
+The development type baseline for Node is `@types/node` `18.x`. This reflects the conservative runtime contract used by supported VS Code extension hosts, not necessarily the newest Node release available locally. Do not raise `@types/node` unless the project intentionally raises its extension-host runtime assumptions and verifies affected crypto APIs.
+
+Runtime-dependent crypto support must remain guarded. Newer algorithms, key formats, and OpenSSL behavior can vary by VS Code and Node runtime, so tests should either use broadly supported fixtures or explicitly skip/assert guarded behavior when the local runtime lacks support.
+
+Dependency PRs that require a compatibility baseline change should be split from unrelated feature work. The PR description should state the old baseline, the new baseline, why the change is needed, and which local and CI checks validate it.
+
 ## Pull Request Expectations
 
 - Explain the user-visible change.
