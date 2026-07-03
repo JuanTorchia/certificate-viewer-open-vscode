@@ -111,6 +111,7 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 ## Requirements
 
 - VS Code 1.85 or later
+- Maintainer guidance for VS Code and Node baseline changes is documented in [CONTRIBUTING.md](CONTRIBUTING.md#compatibility-policy)
 - Works fully offline — no network access, no telemetry
 - Files larger than 5 MiB are refused before parsing to protect the VS Code extension host from unbounded certificate, PKCS#7, or PKCS#12 processing
 
