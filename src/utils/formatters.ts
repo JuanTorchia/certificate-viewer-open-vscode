@@ -18,8 +18,8 @@ export function formatDate(date: Date): string {
 /**
  * Returns "X days" / "X hours" remaining or overdue.
  */
-export function formatRelativeExpiry(date: Date): string {
-  const diffMs = date.getTime() - Date.now();
+export function formatRelativeExpiry(date: Date, now = Date.now()): string {
+  const diffMs = date.getTime() - now;
   const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
   const expired = diffMs < 0;
 
