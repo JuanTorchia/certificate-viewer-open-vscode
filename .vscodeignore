@@ -21,6 +21,7 @@ CONTRIBUTING.md
 ROADMAP.md
 SECURITY.md
 .gitignore
+.all-contributorsrc
 tsconfig.json
 tsconfig.test.json
 pnpm-lock.yaml

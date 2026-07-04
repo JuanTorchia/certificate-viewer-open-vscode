@@ -37,6 +37,24 @@ Use this map to find the right part of the project before opening a PR.
 - Marketplace or README changes: update screenshots or copy, keep security claims conservative, and run `pnpm marketplace:audit`.
 - Documentation-only changes: update the relevant Markdown file and `CHANGELOG.md` when the change affects contributor workflow, release process, Marketplace presentation, or user-visible guidance.
 
+## Managing Contributors
+
+This project uses the [All Contributors](https://allcontributors.org/) specification. To add a contributor or update the contributors list in `README.md`, you can run the following commands from the root directory:
+
+**To add a new contributor:**
+```powershell
+npx all-contributors-cli add <username> <contribution-type>
+```
+For example, to add a contributor for code and documentation:
+```powershell
+npx all-contributors-cli add username code,doc
+```
+
+**To regenerate the contributors table in the README:**
+```powershell
+npx all-contributors-cli generate
+```
+
 ## Before Opening a PR
 
 Run:

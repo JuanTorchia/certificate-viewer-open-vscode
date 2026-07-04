@@ -1,0 +1,47 @@
+{
+  "projectName": "certificate-viewer-open-vscode",
+  "projectOwner": "JuanTorchia",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "commitConvention": "angular",
+  "contributorsPerLine": 7,
+  "contributorsSortAlphabetically": true,
+  "linkToUsage": false,
+  "skipCi": true,
+  "contributors": [
+    {
+      "login": "JuanTorchia",
+      "name": "Juan Torchia",
+      "avatar_url": "https://avatars.githubusercontent.com/u/54363948?v=4",
+      "profile": "https://github.com/JuanTorchia",
+      "contributions": [
+        "code",
+        "doc",
+        "maintenance"
+      ]
+    },
+    {
+      "login": "alpinesox",
+      "name": "alpinesox",
+      "avatar_url": "https://avatars.githubusercontent.com/u/76266335?v=4",
+      "profile": "https://github.com/alpinesox",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Kanneboinashivakumar",
+      "name": "Kanneboina Shiva Kumar",
+      "avatar_url": "https://avatars.githubusercontent.com/u/155247140?v=4",
+      "profile": "https://github.com/Kanneboinashivakumar",
+      "contributions": [
+        "doc"
+      ]
+    }
+  ]
+}
