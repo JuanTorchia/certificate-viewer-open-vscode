@@ -16,34 +16,37 @@ suite("formatDate", () => {
 });
 
 suite("formatRelativeExpiry", () => {
+  const now = new Date("2026-01-15T12:00:00Z").getTime();
+  const dayMs = 24 * 60 * 60 * 1000;
+
   test("returns 'Expires today' for a date in less than 24h", () => {
-    const soon = new Date(Date.now() + 1000 * 60 * 60);
-    assert.strictEqual(formatRelativeExpiry(soon), "Expires today");
+    const soon = new Date(now + 60 * 60 * 1000);
+    assert.strictEqual(formatRelativeExpiry(soon, now), "Expires today");
   });
 
   test("returns 'Expired today' for a date just passed", () => {
-    const past = new Date(Date.now() - 1000 * 60 * 60);
-    assert.strictEqual(formatRelativeExpiry(past), "Expired today");
+    const past = new Date(now - 60 * 60 * 1000);
+    assert.strictEqual(formatRelativeExpiry(past, now), "Expired today");
   });
 
   test("returns 'Expires in 1 day' for ~tomorrow", () => {
-    const tomorrow = new Date(Date.now() + 1.5 * 24 * 60 * 60 * 1000);
-    assert.strictEqual(formatRelativeExpiry(tomorrow), "Expires in 1 day");
+    const tomorrow = new Date(now + 1.5 * dayMs);
+    assert.strictEqual(formatRelativeExpiry(tomorrow, now), "Expires in 1 day");
   });
 
   test("returns 'Expired 1 day ago' for ~yesterday", () => {
-    const yesterday = new Date(Date.now() - 1.5 * 24 * 60 * 60 * 1000);
-    assert.strictEqual(formatRelativeExpiry(yesterday), "Expired 1 day ago");
+    const yesterday = new Date(now - 1.5 * dayMs);
+    assert.strictEqual(formatRelativeExpiry(yesterday, now), "Expired 1 day ago");
   });
 
   test("returns plural days for multi-day future", () => {
-    const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
-    assert.strictEqual(formatRelativeExpiry(future), "Expires in 10 days");
+    const future = new Date(now + 10 * dayMs);
+    assert.strictEqual(formatRelativeExpiry(future, now), "Expires in 10 days");
   });
 
   test("returns plural days for multi-day past", () => {
-    const past = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    assert.strictEqual(formatRelativeExpiry(past), "Expired 10 days ago");
+    const past = new Date(now - 10 * dayMs);
+    assert.strictEqual(formatRelativeExpiry(past, now), "Expired 10 days ago");
   });
 });
 
