@@ -78,6 +78,7 @@ The Certificates panel scans supported files in the current workspace. Large rep
 
 - `certview.workspace.maxFiles` limits how many certificate-related files the panel shows before adding a limit notice.
 - `certview.workspace.excludeGlobs` adds VS Code glob patterns to skip generated or vendor folders, such as `**/dist/**`, `**/build/**`, or `**/vendor/**`.
+- `certview.workspace.autoRefresh` controls whether the panel automatically refreshes when supported certificate-related files change. Disable it in very large workspaces if file watcher churn is noisy, then use the refresh button manually.
 
 VS Code glob patterns use `/` as the path separator, including on Windows.
 
@@ -107,6 +108,7 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 | `certview.showExpiredWarning` | `true` | Highlight expired certificates |
 | `certview.workspace.maxFiles` | `200` | Maximum certificate-related files shown in the Certificates panel before a limit notice appears |
 | `certview.workspace.excludeGlobs` | `[]` | Extra VS Code glob patterns to skip during Certificates panel scans |
+| `certview.workspace.autoRefresh` | `true` | Automatically refresh the Certificates panel when supported files change |
 
 ## Requirements
 
