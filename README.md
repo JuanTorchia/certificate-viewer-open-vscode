@@ -109,6 +109,7 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/JuanTorchia"><img src="https://avatars.githubusercontent.com/u/54363948?v=4?s=100" width="100px;" alt="Juan Torchia"/><br /><sub><b>Juan Torchia</b></sub></a><br /><a href="https://github.com/JuanTorchia/certificate-viewer-open-vscode/commits?author=JuanTorchia" title="Code">💻</a> <a href="https://github.com/JuanTorchia/certificate-viewer-open-vscode/commits?author=JuanTorchia" title="Documentation">📖</a> <a href="#maintenance-JuanTorchia" title="Maintenance">🚧</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Kanneboinashivakumar"><img src="https://avatars.githubusercontent.com/u/155247140?v=4?s=100" width="100px;" alt="Kanneboina Shiva Kumar"/><br /><sub><b>Kanneboina Shiva Kumar</b></sub></a><br /><a href="https://github.com/JuanTorchia/certificate-viewer-open-vscode/commits?author=Kanneboinashivakumar" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/alpinesox"><img src="https://avatars.githubusercontent.com/u/76266335?v=4?s=100" width="100px;" alt="alpinesox"/><br /><sub><b>alpinesox</b></sub></a><br /><a href="https://github.com/JuanTorchia/certificate-viewer-open-vscode/commits?author=alpinesox" title="Code">💻</a></td>
     </tr>
   </tbody>
