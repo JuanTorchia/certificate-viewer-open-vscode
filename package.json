@@ -186,6 +186,11 @@
             "type": "string"
           },
           "description": "Additional VS Code glob patterns to exclude from the Certificates explorer scan. Use forward slashes in globs, for example **/dist/** or **/vendor/**."
+        },
+        "certview.workspace.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh the Certificates explorer when supported certificate-related files change. Disable this in very large workspaces and use the manual refresh command instead."
         }
       }
     }
