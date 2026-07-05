@@ -26,7 +26,6 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
       CertEditorProvider.viewType,
       new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache),
       {
-        webviewOptions: { retainContextWhenHidden: true },
         supportsMultipleEditorsPerDocument: false,
       }
     );
