@@ -4,6 +4,17 @@
   const vscode = acquireVsCodeApi();
   var el = document.getElementById('__cv');
   const doc = el ? JSON.parse(el.getAttribute('data-payload') || 'null') : null;
+  var state = vscode.getState ? (vscode.getState() || {}) : {};
+
+  function saveState(nextState) {
+    state = Object.assign({}, state, nextState);
+    if (vscode.setState) vscode.setState(state);
+  }
+
+  function numberInRange(value, min, max, fallback) {
+    var parsed = typeof value === 'number' ? value : parseInt(value, 10);
+    return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
+  }
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -174,7 +185,7 @@
   // ── Certificate view ────────────────────────────────────────────────────────
 
   function renderCerts(certs, warningDays, targetId) {
-    var active = 0;
+    var active = numberInRange(state.activeCertificateTab, 0, certs.length - 1, 0);
     targetId = targetId || 'app';
 
     function banner(c) {
@@ -220,7 +231,11 @@
         return '<div class="panel' + (i === active ? ' active' : '') + '" data-p="' + i + '">' + renderCert(c) + '</div>';
       }).join('');
       setReviewedHtml(targetId, tabs + panels);
-      wireActions(targetId, function (button) { active = parseInt(button.dataset.i, 10); render(); });
+      wireActions(targetId, function (button) {
+        active = numberInRange(button.dataset.i, 0, certs.length - 1, active);
+        saveState({ activeCertificateTab: active });
+        render();
+      });
     }
 
     render();
