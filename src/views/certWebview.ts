@@ -40,6 +40,20 @@ export function buildWebviewHtml(
     .banner.warn{background:rgba(255,180,0,.15);color:#e5a500}
     .banner.err {background:rgba(220,50,50,.15);color:#f14c4c}
     .banner.info{background:rgba(100,150,255,.15);color:#82b1ff}
+    .chain-summary{border:1px solid var(--vscode-panel-border,#3c3c3c);border-radius:6px;margin-bottom:12px;overflow:hidden}
+    .chain-head{display:flex;justify-content:space-between;gap:12px;align-items:start;padding:10px 12px;
+                background:var(--vscode-sideBarSectionHeader-background,#2d2d30);border-bottom:1px solid var(--vscode-panel-border,#3c3c3c)}
+    .chain-head h2{font-size:1em;margin-bottom:2px}
+    .chain-head p,.chain-note,.chain-sub{color:var(--vscode-descriptionForeground,#9d9d9d);font-size:.85em}
+    .chain-note{white-space:nowrap}
+    .chain-row{display:grid;grid-template-columns:32px minmax(0,1fr) minmax(180px,.75fr);gap:8px;padding:8px 12px;
+               border-bottom:1px solid var(--vscode-panel-border,#3c3c3c)}
+    .chain-row:last-child{border-bottom:none}
+    .chain-index{font-family:var(--vscode-editor-font-family,ui-monospace,SFMono-Regular,Consolas,monospace);color:var(--vscode-descriptionForeground,#9d9d9d)}
+    .chain-role{margin-left:6px;color:var(--vscode-descriptionForeground,#9d9d9d);font-size:.85em}
+    .chain-meta{display:flex;flex-direction:column;gap:3px;font-size:.85em}
+    .chain-status{font-weight:700}.chain-status.valid{color:#4ec994}.chain-status.expired{color:#f14c4c}.chain-status.expiring-soon{color:#e5a500}.chain-status.not-yet-valid{color:#82b1ff}
+    @media (max-width:560px){.chain-head{flex-direction:column}.chain-note{white-space:normal}.chain-row{grid-template-columns:32px minmax(0,1fr)}.chain-meta{grid-column:2}}
     details{border:1px solid var(--vscode-panel-border,#3c3c3c);border-radius:6px;margin-bottom:8px;overflow:hidden}
     summary{padding:8px 12px;background:var(--vscode-sideBarSectionHeader-background,#2d2d30);
             cursor:pointer;font-weight:600;font-size:.85em;text-transform:uppercase;letter-spacing:.04em;

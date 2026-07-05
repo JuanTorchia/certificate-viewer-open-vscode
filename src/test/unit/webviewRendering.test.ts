@@ -112,6 +112,35 @@ suite("webview rendering safety", () => {
     assert.ok(html.includes('<button class="tab active" data-i="1">Intermediate</button>'), html);
     assert.ok(html.includes('<div class="panel active" data-p="1">'), html);
   });
+
+  test("renders a compact chain summary for multi-certificate documents", () => {
+    const html = renderWebview(certificateTabsPayload());
+
+    assert.ok(html.includes("Certificate Chain Summary"), html);
+    assert.ok(html.includes("2 certificates"), html);
+    assert.ok(html.includes("Leaf"), html);
+    assert.ok(html.includes("Root / self-signed"), html);
+    assert.ok(html.includes("Issuer matches next certificate"), html);
+    assert.ok(html.includes("CA: Yes"), html);
+    assert.ok(html.includes("keyCertSign: Yes"), html);
+  });
+
+  test("does not render chain summary for a single certificate", () => {
+    const html = renderWebview(certificateTabsPayload({ count: 1 }));
+
+    assert.ok(!html.includes("Certificate Chain Summary"), html);
+  });
+
+  test("escapes chain summary subject and issuer values", () => {
+    const html = renderWebview(certificateTabsPayload({
+      leafName: "\"><img src=x onerror=alert('chain-subject')>",
+      issuerName: "</span><script>alert('chain-issuer')</script>",
+    }));
+
+    assertNoRawHostileMarkup(html);
+    assert.ok(html.includes("&lt;img src=x onerror=alert('chain-subject')&gt;"), html);
+    assert.ok(html.includes("&lt;/span&gt;&lt;script&gt;alert('chain-issuer')&lt;/script&gt;"), html);
+  });
 });
 
 function renderWebview(payload: unknown): string {
@@ -208,12 +237,18 @@ class FakeClickable {
   }
 }
 
-function certificateTabsPayload(): unknown {
+function certificateTabsPayload(options: {
+  count?: number;
+  leafName?: string;
+  issuerName?: string;
+} = {}): unknown {
+  const leafName = options.leafName ?? "Leaf";
+  const issuerName = options.issuerName ?? "Intermediate";
   const baseCertificate = {
     version: 3,
     serial: "01",
     subject: { commonName: "example.test" },
-    issuer: { commonName: "Example CA" },
+    issuer: { commonName: issuerName },
     notBefore: "2026-01-01",
     notAfter: "2027-01-01",
     relExpiry: "Expires later",
@@ -228,16 +263,29 @@ function certificateTabsPayload(): unknown {
     sigAlg: "sha256WithRSAEncryption",
     selfSigned: false,
     isCA: false,
+    basicConstraints: { ca: false },
     extensions: [],
     findings: [],
   };
 
+  const certs = [
+    { ...baseCertificate, displayName: leafName, subject: { commonName: leafName } },
+    {
+      ...baseCertificate,
+      displayName: issuerName,
+      serial: "02",
+      subject: { commonName: issuerName },
+      issuer: { commonName: issuerName },
+      selfSigned: true,
+      isCA: true,
+      basicConstraints: { ca: true },
+      keyUsage: ["keyCertSign"],
+    },
+  ].slice(0, options.count ?? 2);
+
   return {
     type: "certificates",
     warningDays: 30,
-    certs: [
-      { ...baseCertificate, displayName: "Leaf" },
-      { ...baseCertificate, displayName: "Intermediate", serial: "02" },
-    ],
+    certs,
   };
 }

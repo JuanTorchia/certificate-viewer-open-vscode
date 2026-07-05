@@ -15,6 +15,7 @@ All notable changes to CertView are documented here.
 - Added workspace scan limits and exclude settings for the Certificates explorer.
 - Added configurable Certificates explorer auto-refresh behavior for large workspaces.
 - Added lightweight webview state restoration for certificate tabs without retaining hidden webview contexts.
+- Added a compact certificate chain summary for multi-certificate webviews.
 - Added a pre-merge security review checklist for CodeQL, GitHub Advanced Security, GitGuardian, Dependabot, and related automation comments.
 - Added webview rendering hardening tests for hostile certificate, error, and key fields.
 - Documented the VS Code and Node compatibility policy for dependency and API baseline changes.

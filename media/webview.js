@@ -182,6 +182,78 @@
       .map(function (pair) { return row(pair[0], pair[1], pair[2]); }).join('');
   }
 
+  function principalLabel(name) {
+    if (!name) return '(empty)';
+    return name.commonName || (name.org && name.org.length ? name.org.join(', ') : '') || (name.ou && name.ou.length ? name.ou.join(', ') : '') || '(unnamed)';
+  }
+
+  function normalizePrincipal(name) {
+    return JSON.stringify({
+      commonName: name && name.commonName || '',
+      org: name && name.org || [],
+      ou: name && name.ou || [],
+      country: name && name.country || [],
+      state: name && name.state || [],
+      locality: name && name.locality || [],
+      email: name && name.email || []
+    });
+  }
+
+  function samePrincipal(a, b) {
+    return normalizePrincipal(a) === normalizePrincipal(b);
+  }
+
+  function chainRole(cert, index) {
+    if (cert.selfSigned) return 'Root / self-signed';
+    if (cert.isCA) return 'Intermediate CA';
+    if (index === 0) return 'Leaf';
+    return 'Certificate';
+  }
+
+  function chainRelationship(cert, next) {
+    if (next) {
+      return samePrincipal(cert.issuer, next.subject)
+        ? 'Issuer matches next certificate'
+        : 'Issuer mismatch';
+    }
+    return cert.selfSigned ? 'Self-signed' : 'No issuer certificate in file';
+  }
+
+  function findingCounts(certs) {
+    return certs.reduce(function (acc, cert) {
+      (cert.findings || []).forEach(function (finding) {
+        acc[finding.severity] = (acc[finding.severity] || 0) + 1;
+      });
+      return acc;
+    }, {});
+  }
+
+  function renderChainSummary(certs) {
+    if (certs.length < 2) return '';
+    var counts = findingCounts(certs);
+    var countText = (counts.error || 0) + ' errors / ' + (counts.warning || 0) + ' warnings / ' + (counts.info || 0) + ' info';
+    var rows = certs.map(function (cert, index) {
+      var next = certs[index + 1];
+      var ca = cert.isCA ? 'Yes' : 'No';
+      var keyCertSign = cert.keyUsage && cert.keyUsage.indexOf('keyCertSign') >= 0 ? 'Yes' : 'No';
+      return '<div class="chain-row">'
+        + '<div class="chain-index">' + esc(index + 1) + '</div>'
+        + '<div class="chain-main"><div><strong>' + esc(cert.displayName) + '</strong> <span class="chain-role">' + esc(chainRole(cert, index)) + '</span></div>'
+        + '<div class="chain-sub">Subject: ' + esc(principalLabel(cert.subject)) + '</div>'
+        + '<div class="chain-sub">Issuer: ' + esc(principalLabel(cert.issuer)) + '</div></div>'
+        + '<div class="chain-meta"><span class="chain-status ' + esc(cert.status) + '">' + esc(cert.relExpiry) + '</span>'
+        + '<span>CA: ' + esc(ca) + '</span><span>keyCertSign: ' + esc(keyCertSign) + '</span>'
+        + '<span>' + esc(chainRelationship(cert, next)) + '</span></div>'
+        + '</div>';
+    }).join('');
+
+    return '<section class="chain-summary" aria-label="Certificate chain summary">'
+      + '<div class="chain-head"><div><h2>Certificate Chain Summary</h2><p>' + esc(certs.length) + ' certificates · ' + esc(countText) + '</p></div>'
+      + '<span class="chain-note">Local structural checks only</span></div>'
+      + rows
+      + '</section>';
+  }
+
   // ── Certificate view ────────────────────────────────────────────────────────
 
   function renderCerts(certs, warningDays, targetId) {
@@ -230,7 +302,7 @@
       var panels = certs.map(function (c, i) {
         return '<div class="panel' + (i === active ? ' active' : '') + '" data-p="' + i + '">' + renderCert(c) + '</div>';
       }).join('');
-      setReviewedHtml(targetId, tabs + panels);
+      setReviewedHtml(targetId, renderChainSummary(certs) + tabs + panels);
       wireActions(targetId, function (button) {
         active = numberInRange(button.dataset.i, 0, certs.length - 1, active);
         saveState({ activeCertificateTab: active });
