@@ -5,6 +5,7 @@ import * as vm from "vm";
 
 const WEBVIEW_SCRIPT = path.resolve(__dirname, "../../../media/webview.js");
 const CERT_EDITOR_PROVIDER = path.resolve(__dirname, "../../providers/certEditorProvider.js");
+const EXTENSION = path.resolve(__dirname, "../../extension.js");
 
 suite("webview rendering safety", () => {
   test("routes HTML writes through the reviewed helper", () => {
@@ -15,6 +16,17 @@ suite("webview rendering safety", () => {
   test("does not retain hidden webview contexts", () => {
     const source = fs.readFileSync(CERT_EDITOR_PROVIDER, "utf8");
     assert.ok(!source.includes("retainContextWhenHidden"));
+  });
+
+  test("restricts webview local resource roots to extension media", () => {
+    const source = fs.readFileSync(CERT_EDITOR_PROVIDER, "utf8");
+    assert.ok(source.includes("localResourceRoots"));
+    assert.ok(source.includes("media"));
+  });
+
+  test("open command returns the openWith Thenable", () => {
+    const source = fs.readFileSync(EXTENSION, "utf8");
+    assert.match(source, /return vscode\.commands\.executeCommand\("vscode\.openWith"/);
   });
 
   test("renders hostile certificate fields as text", () => {

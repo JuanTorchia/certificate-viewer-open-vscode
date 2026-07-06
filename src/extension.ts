@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage("CertView: No certificate file selected.");
         return;
       }
-      vscode.commands.executeCommand("vscode.openWith", target, CertEditorProvider.viewType);
+      return vscode.commands.executeCommand("vscode.openWith", target, CertEditorProvider.viewTypeForUri(target));
     })
   );
 }

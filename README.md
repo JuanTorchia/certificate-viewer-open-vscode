@@ -72,6 +72,8 @@ CRL files open with issuer and update timestamps — no more decoding DER by han
 | `.key` `.pub` | PEM or DER public keys and unencrypted private keys, plus encrypted private-key detection without decryption prompts |
 | `.jwk` | JSON Web Key public keys |
 
+Certificate-like files open in CertView by default. Key and JWK files stay text-first on normal open; use **Open With...** or **CertView: Open Certificate** when you want CertView to inspect them.
+
 ## Workspace scanning
 
 The Certificates panel scans supported files in the current workspace. Large repositories can tune that scan without changing project files:
@@ -84,7 +86,8 @@ VS Code glob patterns use `/` as the path separator, including on Windows.
 
 ## Usage
 
-- **Open a file** → the viewer opens automatically on double-click
+- **Open a certificate-like file** → the viewer opens automatically on double-click
+- **Open a key or JWK file** → VS Code opens it as text/JSON by default; use **Open With...** for CertView
 - **Right-click** any supported file → *CertView: Open Certificate*
 - **Certificates panel** in the Explorer sidebar lists all cert files in the workspace
 - **Hover** sections or fields in the certificate view to see RFC context

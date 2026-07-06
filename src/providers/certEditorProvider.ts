@@ -10,6 +10,7 @@ import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
 
 export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = "certview.certEditor";
+  public static readonly keyViewType = "certview.keyEditor";
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -22,13 +23,28 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     diagnosticsProvider?: CertDiagnosticsProvider,
     parsedDocumentCache?: ParsedDocumentCache
   ): vscode.Disposable {
-    return vscode.window.registerCustomEditorProvider(
-      CertEditorProvider.viewType,
-      new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache),
-      {
-        supportsMultipleEditorsPerDocument: false,
-      }
+    const options = {
+      supportsMultipleEditorsPerDocument: false,
+    };
+    return vscode.Disposable.from(
+      vscode.window.registerCustomEditorProvider(
+        CertEditorProvider.viewType,
+        new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache),
+        options
+      ),
+      vscode.window.registerCustomEditorProvider(
+        CertEditorProvider.keyViewType,
+        new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache),
+        options
+      )
     );
+  }
+
+  public static viewTypeForUri(uri: vscode.Uri): string {
+    const ext = path.extname(uri.fsPath).toLowerCase();
+    return [".key", ".pub", ".jwk"].includes(ext)
+      ? CertEditorProvider.keyViewType
+      : CertEditorProvider.viewType;
   }
 
   async openCustomDocument(
@@ -44,7 +60,10 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
-    webviewPanel.webview.options = { enableScripts: true };
+    webviewPanel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, "media")],
+    };
 
     const config = vscode.workspace.getConfiguration("certview");
     const warningDays: number = config.get("warningDaysBeforeExpiry", 30);

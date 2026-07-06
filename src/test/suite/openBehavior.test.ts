@@ -7,6 +7,7 @@
  */
 import * as assert from "assert";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { parseCertificateFile } from "../../parsers/certParser";
@@ -15,6 +16,8 @@ import { buildWebviewHtml } from "../../views/certWebview";
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
 const uri = (f: string): vscode.Uri => vscode.Uri.file(path.join(FIXTURES, f));
 const wait = (ms: number): Promise<void> => new Promise<void>(r => setTimeout(r, ms));
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "certview-open-behavior-"));
+const tempUri = (f: string): vscode.Uri => vscode.Uri.file(path.join(tempRoot, f));
 
 async function openAsUser(file: string): Promise<void> {
   await vscode.commands.executeCommand("vscode.open", uri(file));
@@ -27,7 +30,49 @@ function isOpenAsText(file: string): boolean {
   );
 }
 
+function isTempOpenAsText(file: string): boolean {
+  return vscode.window.visibleTextEditors.some(e =>
+    e.document.uri.fsPath === tempUri(file).fsPath
+  );
+}
+
+async function openTempAsUser(file: string): Promise<void> {
+  await vscode.commands.executeCommand("vscode.open", tempUri(file));
+  await wait(600);
+}
+
+async function openTempWithCertViewCommand(file: string): Promise<void> {
+  await vscode.commands.executeCommand("certview.openCertificate", tempUri(file));
+  await wait(600);
+}
+
+function ensureTempOpenFixtures(): void {
+  if (!fs.existsSync(path.join(tempRoot, "private.key"))) {
+    fs.writeFileSync(path.join(tempRoot, "private.key"), [
+      "-----BEGIN PRIVATE KEY-----",
+      "MC4CAQAwBQYDK2VwBCIEICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr",
+      "-----END PRIVATE KEY-----",
+      "",
+    ].join("\n"));
+  }
+  if (!fs.existsSync(path.join(tempRoot, "public.pub"))) {
+    fs.writeFileSync(path.join(tempRoot, "public.pub"), [
+      "-----BEGIN PUBLIC KEY-----",
+      "MCowBQYDK2VwAyEAKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKys=",
+      "-----END PUBLIC KEY-----",
+      "",
+    ].join("\n"));
+  }
+  if (!fs.existsSync(path.join(tempRoot, "key.jwk"))) {
+    fs.writeFileSync(path.join(tempRoot, "key.jwk"), JSON.stringify({ kty: "RSA", n: "abc", e: "AQAB" }, null, 2));
+  }
+}
+
 suite("Open behavior — user double-click simulation", () => {
+  suiteSetup(() => {
+    ensureTempOpenFixtures();
+  });
+
   teardown(async () => {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     await wait(200);
@@ -63,6 +108,47 @@ suite("Open behavior — user double-click simulation", () => {
       !isOpenAsText("test.crl"),
       ".crl opened in a text editor"
     );
+  });
+
+  test(".key opens as text by default", async () => {
+    await openTempAsUser("private.key");
+    assert.ok(isTempOpenAsText("private.key"), ".key should stay text-first unless the user chooses CertView");
+  });
+
+  test(".pub opens as text by default", async () => {
+    await openTempAsUser("public.pub");
+    assert.ok(isTempOpenAsText("public.pub"), ".pub should stay text-first unless the user chooses CertView");
+  });
+
+  test(".jwk opens as text by default", async () => {
+    await openTempAsUser("key.jwk");
+    assert.ok(isTempOpenAsText("key.jwk"), ".jwk should stay JSON/text-first unless the user chooses CertView");
+  });
+});
+
+suite("Open behavior — explicit CertView command for key files", () => {
+  suiteSetup(() => {
+    ensureTempOpenFixtures();
+  });
+
+  teardown(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    await wait(200);
+  });
+
+  test(".key opens in CertView when requested explicitly", async () => {
+    await openTempWithCertViewCommand("private.key");
+    assert.ok(!isTempOpenAsText("private.key"), ".key should open in CertView through the CertView command");
+  });
+
+  test(".pub opens in CertView when requested explicitly", async () => {
+    await openTempWithCertViewCommand("public.pub");
+    assert.ok(!isTempOpenAsText("public.pub"), ".pub should open in CertView through the CertView command");
+  });
+
+  test(".jwk opens in CertView when requested explicitly", async () => {
+    await openTempWithCertViewCommand("key.jwk");
+    assert.ok(!isTempOpenAsText("key.jwk"), ".jwk should open in CertView through the CertView command");
   });
 });
 

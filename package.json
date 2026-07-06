@@ -90,7 +90,14 @@
           },
           {
             "filenamePattern": "*.pfx"
-          },
+          }
+        ],
+        "priority": "default"
+      },
+      {
+        "viewType": "certview.keyEditor",
+        "displayName": "Key Viewer",
+        "selector": [
           {
             "filenamePattern": "*.key"
           },
@@ -101,7 +108,7 @@
             "filenamePattern": "*.jwk"
           }
         ],
-        "priority": "default"
+        "priority": "option"
       }
     ],
     "views": {
