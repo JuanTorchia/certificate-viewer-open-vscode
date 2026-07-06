@@ -6,6 +6,7 @@ import { KeyInfo } from "../parsers/keyParser";
 import { parseDocument } from "../parsers/documentParser";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
 import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
+import { CertEditorProvider } from "./certEditorProvider";
 import { buildWorkspaceExcludeGlob, limitWorkspaceScanResults, normalizeWorkspaceScanSettings, shouldRefreshWorkspaceUri, SUPPORTED_WORKSPACE_FILE_GLOB } from "./workspaceScan";
 
 type TreeItemType = "file" | "cert" | "key" | "field";
@@ -121,7 +122,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
           {
             command: "vscode.openWith",
             title: "Open Certificate",
-            arguments: [uri, "certview.certEditor"],
+            arguments: [uri, CertEditorProvider.viewTypeForUri(uri)],
           }
         );
         item.tooltip = uri.fsPath;

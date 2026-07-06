@@ -1,9 +1,13 @@
 import * as assert from "assert";
+import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
 const uri = (f: string): vscode.Uri => vscode.Uri.file(path.join(FIXTURES, f));
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "certview-provider-"));
+const tempUri = (f: string): vscode.Uri => vscode.Uri.file(path.join(tempRoot, f));
 const exec = (cmd: string, ...args: unknown[]): Promise<unknown> =>
   Promise.resolve(vscode.commands.executeCommand(cmd, ...args));
 
@@ -17,6 +21,17 @@ suite("CertEditorProvider — registration", () => {
 
   test("certview.certEditor viewType is registered", async () => {
     await assert.doesNotReject(exec("vscode.openWith", uri("self-signed.pem"), "certview.certEditor"));
+    await exec("workbench.action.closeAllEditors");
+  });
+
+  test("certview.keyEditor viewType is registered", async () => {
+    fs.writeFileSync(path.join(tempRoot, "private.key"), [
+      "-----BEGIN PRIVATE KEY-----",
+      "MC4CAQAwBQYDK2VwBCIEICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr",
+      "-----END PRIVATE KEY-----",
+      "",
+    ].join("\n"));
+    await assert.doesNotReject(exec("vscode.openWith", tempUri("private.key"), "certview.keyEditor"));
     await exec("workbench.action.closeAllEditors");
   });
 });
