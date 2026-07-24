@@ -40,3 +40,13 @@ When reviewing or editing recently changed files, prefer direct file reads for t
 - Who calls it: `trace_path(project="certview-vscode", function_name="OrderHandler", direction="inbound")`
 - Read source: `get_code_snippet(project="certview-vscode", qualified_name="pkg/orders.OrderHandler")`
 <!-- codebase-memory-mcp:end -->
+
+## Commands
+
+- Install dependencies: `pnpm install`
+- Compile: `pnpm compile`
+- Bundle extension: `pnpm bundle`
+- Lint: `pnpm lint`
+- Unit tests: `pnpm test:unit`
+- VS Code integration tests: `pnpm test`
+- Package readiness: `pnpm package:ci`
