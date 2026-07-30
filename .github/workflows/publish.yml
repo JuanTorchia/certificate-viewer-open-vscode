@@ -12,6 +12,8 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v7
@@ -62,6 +64,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v7
@@ -86,7 +90,7 @@ jobs:
 
       - name: Publish
         run: |
-          if output=$(npx --yes @vscode/vsce publish --no-dependencies 2>&1); then
+          if output=$(pnpm exec vsce publish --no-dependencies 2>&1); then
             echo "$output"
           else
             echo "$output"
