@@ -241,10 +241,10 @@
     "overrides": {
       "brace-expansion": "5.0.7",
       "diff": "9.0.0",
-      "fast-uri": "4.1.0",
+      "fast-uri": "4.1.1",
       "form-data": "4.0.6",
       "js-yaml": "4.3.0",
-      "linkify-it": "5.0.1",
+      "linkify-it": "5.0.2",
       "markdown-it": "14.2.0",
       "qs": "6.15.3",
       "serialize-javascript": "7.0.7",
