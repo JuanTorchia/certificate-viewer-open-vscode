@@ -35,9 +35,9 @@ This roadmap is intentionally pragmatic. The goal is to make CertView more usefu
 
 ## Shipped
 
-- Clean VSIX packaging so only runtime assets are published.
-- Add issue templates, PR template, contribution guide, security policy, and roadmap links.
-- Cache parsed workspace files by URI, size, and mtime to reduce repeated parsing in the explorer and diagnostics.
-- Add a compact chain summary showing leaf, intermediates, root, issuer matching, and validity nesting.
-- Add configurable workspace scan limits and excludes for large monorepos.
-- Label issues by area: parser, webview, diagnostics, docs, good first issue, help wanted, security.
+- Cleaned up VSIX packaging so only runtime assets are published ([#67](https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues/67)).
+- Added issue templates, PR template, contribution guide, security policy, and roadmap links.
+- Added caching of parsed workspace files by URI, size, and mtime ([#46](https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues/46)).
+- Added a compact chain summary showing leaf, intermediates, root, issuer matching, and validity nesting ([#59](https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues/59)).
+- Added configurable workspace scan limits and excludes for large monorepos ([#38](https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues/38), [#52](https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues/52)).
+- Added issue labels by area: parser, webview, diagnostics, docs, good first issue, help wanted, security.
