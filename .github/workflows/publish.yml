@@ -90,8 +90,13 @@ jobs:
         run: pnpm package:audit
 
       - name: Publish
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
-          if output=$(pnpm exec vsce publish --no-dependencies --oidc 2>&1); then
+          # The Marketplace API currently reports that Trusted Publishing is
+          # not supported for this publisher. Keep the PAT scoped to Actions
+          # until Microsoft enables OIDC for gmm.
+          if output=$(pnpm exec vsce publish --no-dependencies 2>&1); then
             echo "$output"
           else
             echo "$output"
