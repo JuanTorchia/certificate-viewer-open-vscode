@@ -1,8 +1,8 @@
 {
   "name": "certview",
-  "displayName": "CertView: X509 Certificate Utility",
-  "description": "Inspect X.509 certificates, CSRs, CRLs, PKCS#7 bundles, PKCS#12/PFX files, and keys locally in VS Code.",
-  "version": "0.3.6",
+  "displayName": "CertView: X.509 Certificate Inspector",
+  "description": "Inspect X.509, PEM, DER, CSR, CRL, PKCS#7, PKCS#12/PFX, JWK, and key files locally in VS Code — offline, with no telemetry.",
+  "version": "0.4.0",
   "publisher": "gmm",
   "license": "MIT",
   "packageManager": "pnpm@9.15.9",
@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues"
   },
-  "homepage": "https://github.com/JuanTorchia/certificate-viewer-open-vscode#readme",
+  "homepage": "https://gmmhub.net/products/certview-vscode",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -35,6 +35,13 @@
     "pkcs12",
     "pfx",
     "p7b",
+    "pkcs7",
+    "der",
+    "jwk",
+    "offline",
+    "no-telemetry",
+    "certificate-viewer",
+    "openssl",
     "security",
     "devtools"
   ],

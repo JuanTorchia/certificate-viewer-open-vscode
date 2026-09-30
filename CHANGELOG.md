@@ -4,6 +4,8 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-30
+
 ### Added
 
 - Added corrupt PKCS#12/PFX parser coverage for wrong passwords, truncated bundles, empty files, and non-PKCS#12 DER inputs.

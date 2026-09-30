@@ -11,6 +11,8 @@ CertView helps you quickly answer who issued a certificate, when it expires, whi
 
 It works offline, does not include telemetry, and does not send certificate, key, or PKI material outside your machine. No external tools, OpenSSL install, account, or network access required.
 
+Built and maintained by [Juan Torchia](https://github.com/JuanTorchia) as part of [GMM Software Solutions](https://gmmhub.net/). See the [CertView product page](https://gmmhub.net/products/certview-vscode) for architecture, support boundaries, source, and release links.
+
 ![Expiry warning banner](images/preview-expiry-warning.png)
 
 ## Install
@@ -155,6 +157,13 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 - Lint findings are advisory. They do not establish certificate trust, revocation status, WebPKI compliance, RFC 5280 path validation, FIPS compliance, Common Criteria conformance, or organizational policy compliance.
 
 ## Release Notes
+
+### 0.4.0
+
+- Added compact certificate-chain summaries, parsed-document caching, bounded workspace scanning, configurable auto-refresh, and safer webview restoration.
+- Expanded X.509, CSR, CRL, PKCS#7, PKCS#12/PFX, PEM, DER, JWK, and key parsing coverage with malformed-input and hostile-rendering tests.
+- Kept key and JWK files text-first while preserving explicit CertView inspection through **Open With...** and the command palette.
+- Hardened packaging and development dependencies; the audited VSIX contains only runtime assets and the extension remains offline with no telemetry.
 
 ### 0.3.5
 
