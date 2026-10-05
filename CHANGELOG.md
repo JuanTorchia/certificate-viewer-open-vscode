@@ -4,6 +4,10 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+### Added
+
+- After regular use (5 distinct days with a certificate or key file displayed without errors, at least 14 days after first use), CertView may ask for a Marketplace rating in a non-modal notification. "Later" postpones it 30 days; "Rate" or "Don't ask again" stop it for good, and it is never shown more than twice. It only appears in Microsoft VS Code, makes no network calls, and can be turned off with `certview.ratingPrompt.enabled`.
+
 ### Changed
 
 - Aligned the README title, install instructions, and contributing guide with the Marketplace name "CertView: X.509 Certificate Inspector".

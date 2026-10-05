@@ -136,6 +136,7 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 | `certview.workspace.maxFiles` | `200` | Maximum certificate-related files shown in the Certificates panel before a limit notice appears |
 | `certview.workspace.excludeGlobs` | `[]` | Extra VS Code glob patterns to skip during Certificates panel scans |
 | `certview.workspace.autoRefresh` | `true` | Automatically refresh the Certificates panel when supported files change |
+| `certview.ratingPrompt.enabled` | `true` | Occasionally ask for a Marketplace rating after regular use (at most twice) |
 
 ## Requirements
 
@@ -157,6 +158,8 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 - Algorithm support is runtime-dependent. CertView displays algorithms that Node.js can parse from X.509 SubjectPublicKeyInfo, PKCS#8, SPKI, or JWK inputs. RSA, RSA-PSS, EC, Ed25519, Ed448, and runtime-supported ML-DSA keys are covered by tests or guarded runtime checks. ML-KEM support depends on the extension host's Node.js/OpenSSL key import support and is not guaranteed on older runtimes.
 - Encrypted private keys are detected but not decrypted; CertView does not prompt for private-key passwords.
 - Lint findings are advisory. They do not establish certificate trust, revocation status, WebPKI compliance, RFC 5280 path validation, FIPS compliance, Common Criteria conformance, or organizational policy compliance.
+
+**Rate / report issues** — if CertView helps you, [leave a review on the Marketplace](https://marketplace.visualstudio.com/items?itemName=gmm.certview&ssr=false#review-details); bugs and gaps go to [GitHub issues](https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues).
 
 ## Release Notes
 

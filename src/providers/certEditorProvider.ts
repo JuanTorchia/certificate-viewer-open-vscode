@@ -7,6 +7,7 @@ import { buildWebviewHtml } from "../views/certWebview";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
 import { CertDiagnosticsProvider } from "./certDiagnostics";
 import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
+import { SuccessfulViewListener } from "./ratingPromptController";
 
 export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = "certview.certEditor";
@@ -15,13 +16,15 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly diagnosticsProvider?: CertDiagnosticsProvider,
-    private readonly parsedDocumentCache?: ParsedDocumentCache
+    private readonly parsedDocumentCache?: ParsedDocumentCache,
+    private readonly onSuccessfulView?: SuccessfulViewListener
   ) {}
 
   public static register(
     context: vscode.ExtensionContext,
     diagnosticsProvider?: CertDiagnosticsProvider,
-    parsedDocumentCache?: ParsedDocumentCache
+    parsedDocumentCache?: ParsedDocumentCache,
+    onSuccessfulView?: SuccessfulViewListener
   ): vscode.Disposable {
     const options = {
       supportsMultipleEditorsPerDocument: false,
@@ -29,12 +32,12 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     return vscode.Disposable.from(
       vscode.window.registerCustomEditorProvider(
         CertEditorProvider.viewType,
-        new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache),
+        new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache, onSuccessfulView),
         options
       ),
       vscode.window.registerCustomEditorProvider(
         CertEditorProvider.keyViewType,
-        new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache),
+        new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache, onSuccessfulView),
         options
       )
     );
@@ -76,6 +79,9 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
       parsed,
       warningDays
     );
+    if (parsed.type !== "error") {
+      this.onSuccessfulView?.();
+    }
 
     webviewPanel.webview.onDidReceiveMessage(async (msg: { command: string; data?: string }) => {
       switch (msg.command) {
