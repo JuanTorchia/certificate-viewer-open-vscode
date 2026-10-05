@@ -163,6 +163,12 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 
 ## Release Notes
 
+### 0.5.0
+
+- Fixed PEM files with explanatory text before or between `-----BEGIN` boundaries (for example `openssl x509 -text` output or PKCS#12 Bag Attributes) failing to parse.
+- Added an optional, non-modal Marketplace rating prompt after regular use; it never appears more than twice and can be turned off with `certview.ratingPrompt.enabled`.
+- Unified the listing name, added an animated demo, and moved the Marketplace category from `Other` to `Linters`.
+
 ### 0.4.0
 
 - Added compact certificate-chain summaries, parsed-document caching, bounded workspace scanning, configurable auto-refresh, and safer webview restoration.

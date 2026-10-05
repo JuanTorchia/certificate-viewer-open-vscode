@@ -2,7 +2,7 @@
   "name": "certview",
   "displayName": "CertView: X.509 Certificate Inspector",
   "description": "Inspect X.509, PEM, DER, CSR, CRL, PKCS#7, PKCS#12/PFX, JWK, and key files locally in VS Code — offline, with no telemetry.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "gmm",
   "license": "MIT",
   "packageManager": "pnpm@9.15.9",
