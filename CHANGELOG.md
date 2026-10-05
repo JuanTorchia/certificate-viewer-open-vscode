@@ -4,6 +4,10 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- Fixed PEM files with explanatory text before or between `-----BEGIN` boundaries (for example `openssl x509 -text` output or PKCS#12 Bag Attributes) failing to parse (#78).
+
 ## 0.4.0 - 2026-09-30
 
 ### Added

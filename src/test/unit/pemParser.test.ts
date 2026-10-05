@@ -74,6 +74,18 @@ suite("pemParser — isPemContent", () => {
     assert.ok(!isPemContent(""));
   });
 
+  test("returns true when explanatory text precedes the BEGIN boundary", () => {
+    assert.ok(isPemContent("Certificate:\n    Data:\n-----BEGIN CERTIFICATE-----\nfoo\n-----END CERTIFICATE-----"));
+  });
+
+  test("returns true for CRLF content with text before BEGIN", () => {
+    assert.ok(isPemContent("Bag Attributes\r\n    friendlyName: x\r\n-----BEGIN CERTIFICATE-----\r\nfoo\r\n-----END CERTIFICATE-----\r\n"));
+  });
+
+  test("returns false when BEGIN appears only inside a line", () => {
+    assert.ok(!isPemContent("note: -----BEGIN CERTIFICATE----- is the header"));
+  });
+
   test("returns true for self-signed fixture", () => {
     assert.ok(isPemContent(readText("self-signed.pem")));
   });
