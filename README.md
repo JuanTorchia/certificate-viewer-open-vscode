@@ -1,4 +1,4 @@
-# CertView: X.509 Certificate Utility
+# CertView: X.509 Certificate Inspector
 
 [![CI](https://github.com/JuanTorchia/certificate-viewer-open-vscode/actions/workflows/publish.yml/badge.svg)](https://github.com/JuanTorchia/certificate-viewer-open-vscode/actions/workflows/publish.yml)
 [![Marketplace](https://img.shields.io/visual-studio-marketplace/v/gmm.certview?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=gmm.certview)
@@ -9,16 +9,18 @@
 **Inspect certificates without leaving VS Code.**
 CertView helps you quickly answer who issued a certificate, when it expires, which names it covers, whether a chain is ordered as expected, and what fingerprints you need to copy for reviews or incidents.
 
+![Open a PEM file, check expiry and details, and copy the SHA-256 fingerprint](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/docs/images/certview-demo.gif)
+
 It works offline, does not include telemetry, and does not send certificate, key, or PKI material outside your machine. No external tools, OpenSSL install, account, or network access required.
 
 Built and maintained by [Juan Torchia](https://github.com/JuanTorchia) as part of [GMM Software Solutions](https://gmmhub.net/). See the [CertView product page](https://gmmhub.net/products/certview-vscode) for architecture, support boundaries, source, and release links.
 
-![Expiry warning banner](images/preview-expiry-warning.png)
+![Expiry warning banner](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-expiry-warning.png)
 
 ## Install
 
 - Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gmm.certview).
-- Or search for **X509 Certificate Utility** in the VS Code Extensions view.
+- Or search for **CertView** in the VS Code Extensions view.
 - Open any supported certificate file to inspect it directly in the editor.
 
 ## What it does
@@ -40,25 +42,25 @@ Double-click any certificate file and instantly see:
 
 Never get caught by a surprise certificate expiration. Files expiring within 30 days get a yellow warning banner; expired certificates show a red one.
 
-![Certificate details view](images/preview-cert-details.png)
+![Certificate details view](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-cert-details.png)
 
 ## Certificate chains
 
 Multi-certificate files (chains, P7B bundles) are displayed as tabbed panels — one tab per certificate in the chain.
 
-![Certificate chain with tabs](images/preview-chain-bundle.png)
+![Certificate chain with tabs](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-chain-bundle.png)
 
 ## CA certificates
 
 Self-signed and CA certificates are clearly identified.
 
-![CA certificate view](images/preview-ca-certificate.png)
+![CA certificate view](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-ca-certificate.png)
 
 ## Certificate Revocation Lists
 
 CRL files open with issuer and update timestamps — no more decoding DER by hand.
 
-![CRL viewer](images/preview-crl-viewer.png)
+![CRL viewer](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-crl-viewer.png)
 
 ## Supported formats
 
