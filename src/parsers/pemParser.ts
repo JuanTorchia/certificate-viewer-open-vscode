@@ -64,9 +64,13 @@ export function splitPemBlocks(pemContent: string): PemBlock[] {
   return blocks;
 }
 
-/** Returns true if the content looks like a PEM file. */
+/**
+ * Returns true if the content contains a PEM BEGIN boundary on its own line.
+ * RFC 7468 §2 allows explanatory text (e.g. `openssl x509 -text` output or
+ * PKCS#12 Bag Attributes) before and between encapsulation boundaries.
+ */
 export function isPemContent(content: string): boolean {
-  return PEM_HEADER_RE.test(content.trim().split("\n")[0]?.trim() ?? "");
+  return content.split("\n").some(line => PEM_HEADER_RE.test(line.trim()));
 }
 
 /**
