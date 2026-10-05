@@ -205,6 +205,12 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically refresh the Certificates explorer when supported certificate-related files change. Disable this in very large workspaces and use the manual refresh command instead."
+        },
+        "certview.ratingPrompt.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Occasionally ask for a Marketplace rating after regular use.",
+          "markdownDescription": "Occasionally ask for a VS Code Marketplace rating after regular use (at most twice, never in the first session). Only shown in Microsoft VS Code."
         }
       }
     }

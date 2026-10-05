@@ -3,6 +3,7 @@ import { CertEditorProvider } from "./providers/certEditorProvider";
 import { CertTreeProvider } from "./providers/certTreeProvider";
 import { CertDiagnosticsProvider } from "./providers/certDiagnostics";
 import { ParsedDocumentCache, ParsedDocumentStat } from "./parsers/parsedDocumentCache";
+import { createRatingPrompt } from "./providers/ratingPromptController";
 
 export function activate(context: vscode.ExtensionContext): void {
   const parsedDocumentCache = new ParsedDocumentCache({
@@ -18,7 +19,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(diagnosticsProvider);
 
   // Register the custom editor for certificate files
-  context.subscriptions.push(CertEditorProvider.register(context, diagnosticsProvider, parsedDocumentCache));
+  context.subscriptions.push(CertEditorProvider.register(context, diagnosticsProvider, parsedDocumentCache, createRatingPrompt(context)));
 
   // Register the sidebar tree view
   const treeProvider = new CertTreeProvider(parsedDocumentCache);
