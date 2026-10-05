@@ -202,6 +202,56 @@ suite("parseDocument — usuario abre PEM con CRLF", () => {
   });
 });
 
+// ── Escenario: usuario abre PEM con texto explicativo (RFC 7468 §2) ─────────
+
+suite("parseDocument — usuario abre PEM con texto antes de BEGIN", () => {
+  const selfSigned = (): string => load("self-signed.pem").toString("utf-8").trim();
+  const chainCerts = (): string[] =>
+    load("chain.pem").toString("utf-8").match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) ?? [];
+  const sha256 = (doc: ReturnType<typeof parseDocument>): string[] => {
+    assert.strictEqual(doc.type, "certificates", doc.type === "error" ? `${doc.message}: ${doc.detail}` : doc.type);
+    return doc.items.map(item => item.fingerprints.sha256);
+  };
+
+  test("salida de openssl x509 -text antes del bloque se ignora", () => {
+    const text = [
+      "Certificate:",
+      "    Data:",
+      "        Version: 3 (0x2)",
+      "        Subject: CN = self-signed.example.com",
+      selfSigned(),
+    ].join("\n");
+    const doc = parseDocument(Buffer.from(text), "explanatory.pem");
+    assert.deepStrictEqual(sha256(doc), sha256(parseDocument(load("self-signed.pem"), "self-signed.pem")));
+  });
+
+  test("Bag Attributes de un export PKCS#12 se ignoran", () => {
+    const text = [
+      "Bag Attributes",
+      "    localKeyID: 01 00 00 00",
+      "    friendlyName: self-signed",
+      "subject=CN = self-signed.example.com",
+      "issuer=CN = self-signed.example.com",
+      selfSigned(),
+    ].join("\n");
+    const doc = parseDocument(Buffer.from(text), "bag.crt");
+    assert.strictEqual(sha256(doc).length, 1);
+  });
+
+  test("varios certificados con texto entre ellos se parsean todos", () => {
+    const [leaf, ca] = chainCerts();
+    const text = ["subject=CN = leaf", leaf, "", "subject=CN = Test CA", ca, "trailing note"].join("\n");
+    const doc = parseDocument(Buffer.from(text), "chain-with-text.pem");
+    assert.deepStrictEqual(sha256(doc), sha256(parseDocument(load("chain.pem"), "chain.pem")));
+  });
+
+  test("texto explicativo con CRLF se parsea", () => {
+    const text = ["Certificate:", "    Subject: CN = self-signed.example.com", selfSigned()].join("\n").replace(/\n/g, "\r\n");
+    const doc = parseDocument(Buffer.from(text), "explanatory-crlf.pem");
+    assert.strictEqual(sha256(doc).length, 1);
+  });
+});
+
 // ── Escenario: usuario arrastra un archivo equivocado ─────────────────────────
 
 suite("parseDocument — usuario abre archivo incorrecto", () => {

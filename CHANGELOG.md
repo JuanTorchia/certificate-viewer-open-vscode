@@ -11,6 +11,10 @@ All notable changes to CertView are documented here.
 - Switched README images to absolute URLs so they render on the Marketplace, and excluded README-only images from the VSIX.
 - Replaced the `Other` Marketplace category with `Linters`, next to `Visualization`, and added a gallery banner matching the icon.
 
+### Fixed
+
+- Fixed PEM files with explanatory text before or between `-----BEGIN` boundaries (for example `openssl x509 -text` output or PKCS#12 Bag Attributes) failing to parse (#78).
+
 ## 0.4.0 - 2026-09-30
 
 ### Added
