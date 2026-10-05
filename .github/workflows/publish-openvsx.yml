@@ -14,20 +14,13 @@ on:
 
 permissions:
   contents: read
+  # OIDC token for Open VSX trusted publishing; no long-lived secret.
+  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
-      - name: Require the Open VSX token
-        run: |
-          if [ -z "$OVSX_PAT" ]; then
-            echo "::error::OVSX_PAT secret is not configured."
-            exit 1
-          fi
-
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
@@ -55,12 +48,5 @@ jobs:
       - name: Audit VSIX contents
         run: pnpm package:audit
 
-      - name: Ensure the gmm namespace exists
-        run: |
-          if ! output=$(npx --yes ovsx@1.2.0 create-namespace gmm 2>&1); then
-            echo "$output"
-            echo "$output" | grep -qi "already exists" || exit 1
-          fi
-
       - name: Publish
-        run: npx --yes ovsx@1.2.0 publish --packagePath ./*.vsix --skip-duplicate
+        run: npx --yes ovsx@1.2.0 publish --trusted-publishing --packagePath ./*.vsix --skip-duplicate
