@@ -4,6 +4,8 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-30
+
 ### Added
 
 - Added corrupt PKCS#12/PFX parser coverage for wrong passwords, truncated bundles, empty files, and non-PKCS#12 DER inputs.
@@ -26,6 +28,7 @@ All notable changes to CertView are documented here.
 
 ### Security
 
+- Updated the development dependency security floor for `brace-expansion`, `fast-uri`, `js-yaml`, `markdown-it`, `qs`, and `undici`, clearing the current high, moderate, and low advisories without a major-version upgrade.
 - Bumped the `fast-uri` and `linkify-it` pnpm overrides to patched releases, clearing GHSA-v2hh-gcrm-f6hx (CVE-2026-16221) and GHSA-v245-v573-v5vm (CVE-2026-59887) from the development dependency tree.
 - Declared explicit read-only `contents` permissions on both CI jobs instead of relying on the repository-wide default.
 - Excluded `AGENTS.md` from the published VSIX so internal working agreements and local tooling paths no longer ship to Marketplace users.
