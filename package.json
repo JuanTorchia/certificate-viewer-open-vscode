@@ -18,9 +18,13 @@
     "vscode": "^1.85.0"
   },
   "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#2C3E50",
+    "theme": "dark"
+  },
   "categories": [
-    "Other",
-    "Visualization"
+    "Visualization",
+    "Linters"
   ],
   "keywords": [
     "x509",
@@ -225,6 +229,7 @@
     "test:unit": "npm run compile && node ./out/test/unit/index.js",
     "test": "node ./out/test/runTest.js",
     "fixtures:local": "node scripts/generate-local-fixtures.js",
+    "demo:gif": "node scripts/generate-demo-gif.cjs",
     "lint": "eslint src --ext ts",
     "package": "vsce package --no-dependencies",
     "package:contents": "vsce ls --no-dependencies",
