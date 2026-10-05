@@ -4,6 +4,13 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Aligned the README title, install instructions, and contributing guide with the Marketplace name "CertView: X.509 Certificate Inspector".
+- Added an animated README demo (open a PEM file, check expiry and details, copy the SHA-256 fingerprint) with committed source frames and a `pnpm demo:gif` generator.
+- Switched README images to absolute URLs so they render on the Marketplace, and excluded README-only images from the VSIX.
+- Replaced the `Other` Marketplace category with `Linters`, next to `Visualization`, and added a gallery banner matching the icon.
+
 ## 0.4.0 - 2026-09-30
 
 ### Added

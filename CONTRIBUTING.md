@@ -1,4 +1,4 @@
-# Contributing to X509 Certificate Utility
+# Contributing to CertView
 
 Thanks for helping improve CertView. This project is useful only if certificate behavior is predictable, well-tested, and clear to users who are not PKI specialists.
 
@@ -34,7 +34,7 @@ Use this map to find the right part of the project before opening a PR.
 - VS Code behavior changes: update `src/providers` or `src/extension.ts`; run `pnpm test`.
 - Diagnostics or linting changes: update provider/linter code and focused unit tests; run `pnpm test:unit` and `pnpm test` when diagnostics are visible in VS Code.
 - Packaging, CI, or release changes: update `.github`, `scripts`, `package.json`, or `.vscodeignore`; run `pnpm package:ci`.
-- Marketplace or README changes: update screenshots or copy, keep security claims conservative, and run `pnpm marketplace:audit`.
+- Marketplace or README changes: update screenshots or copy, keep security claims conservative, and run `pnpm marketplace:audit`. README images use absolute `raw.githubusercontent.com` URLs on `main` so they render on the Marketplace; the demo GIF is rebuilt from the committed frames in `docs/images` with `pnpm demo:gif` (requires ImageMagick).
 - Documentation-only changes: update the relevant Markdown file and `CHANGELOG.md` when the change affects contributor workflow, release process, Marketplace presentation, or user-visible guidance.
 
 ## Managing Contributors

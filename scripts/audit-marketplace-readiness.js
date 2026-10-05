@@ -59,26 +59,35 @@ for (const check of requiredReadmePatterns) {
   }
 }
 
-const localImageRefs = [...readme.matchAll(/!\[([^\]]*)\]\((?!https?:\/\/)([^)#]+)(?:#[^)]+)?\)/g)]
+// vsce only rewrites relative image paths at package time, so README images must use
+// absolute raw URLs that render on the Marketplace. They are checked against local files.
+const repoRawBase = "https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/";
+const imageRefs = [...readme.matchAll(/!\[([^\]]*)\]\(([^)#\s]+)(?:#[^)]+)?\)/g)]
   .map(match => ({ alt: match[1], ref: match[2] }));
-if (localImageRefs.length < 3) {
-  failures.push(`README should reference at least 3 local screenshots; found ${localImageRefs.length}.`);
+const relativeImageRefs = imageRefs.filter(image => !/^https:\/\//.test(image.ref));
+for (const image of relativeImageRefs) {
+  failures.push(`README image must use an absolute https URL: ${image.ref}`);
 }
-if (![...firstScreen.matchAll(/!\[[^\]]+\]\((?!https?:\/\/)([^)#]+)(?:#[^)]+)?\)/g)].length) {
-  failures.push("README first screen should include at least one local screenshot.");
+const repoImageRefs = imageRefs.filter(image => image.ref.startsWith(repoRawBase));
+if (repoImageRefs.length < 3) {
+  failures.push(`README should reference at least 3 repository screenshots; found ${repoImageRefs.length}.`);
 }
-for (const image of localImageRefs) {
+if (!firstScreen.includes(`](${repoRawBase}`)) {
+  failures.push("README first screen should include at least one repository screenshot.");
+}
+for (const image of repoImageRefs) {
+  const localRef = image.ref.slice(repoRawBase.length);
   if (!image.alt.trim()) {
-    failures.push(`README image is missing alt text: ${image.ref}`);
+    failures.push(`README image is missing alt text: ${localRef}`);
   }
-  const imagePath = path.join(root, image.ref);
+  const imagePath = path.join(root, localRef);
   if (!fs.existsSync(imagePath)) {
-    failures.push(`README references a missing local image: ${image.ref}`);
+    failures.push(`README references a missing repository image: ${localRef}`);
     continue;
   }
   const size = fs.statSync(imagePath).size;
   if (size > 500 * 1024) {
-    failures.push(`README image is larger than 500 KiB: ${image.ref}`);
+    failures.push(`README image is larger than 500 KiB: ${localRef}`);
   }
 }
 
