@@ -63,9 +63,11 @@ jobs:
     name: Publish to Marketplace
     needs: build
     runs-on: ubuntu-latest
+    environment: marketplace
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - uses: actions/checkout@v7
@@ -88,9 +90,16 @@ jobs:
       - name: Audit VSIX contents
         run: pnpm package:audit
 
+      - name: Sign in to Microsoft Entra
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
       - name: Publish
         run: |
-          if output=$(pnpm exec vsce publish --no-dependencies 2>&1); then
+          if output=$(pnpm exec vsce publish --azure-credential --no-dependencies 2>&1); then
             echo "$output"
           else
             echo "$output"
@@ -99,5 +108,3 @@ jobs:
             fi
             echo "Version already published — skipping."
           fi
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
