@@ -59,6 +59,23 @@ suite("pemParser — splitPemBlocks", () => {
     const blocks = splitPemBlocks(readText("chain.pem")).filter(b => b.type === "CERTIFICATE");
     assert.strictEqual(blocks.length, 2);
   });
+
+  test("parses line-heavy PEM input without quadratic parsing time", function () {
+    this.timeout(5_000);
+    const pem = [
+      "-----BEGIN CERTIFICATE-----",
+      ...Array(20_000).fill("A"),
+      "-----END CERTIFICATE-----",
+    ].join("\n");
+    assert.ok(Buffer.byteLength(pem, "utf8") < 256 * 1024);
+
+    const startedAt = process.hrtime.bigint();
+    const blocks = splitPemBlocks(pem);
+    const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+
+    assert.strictEqual(blocks.length, 1);
+    assert.ok(elapsedMs < 500, `Expected parsing below 500 ms, took ${elapsedMs.toFixed(1)} ms`);
+  });
 });
 
 suite("pemParser — isPemContent", () => {

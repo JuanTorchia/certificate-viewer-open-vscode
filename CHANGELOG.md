@@ -4,6 +4,13 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+## 0.5.1 - 2026-10-07
+
+### Security
+
+- Fixed a denial of service in PEM parsing: `splitPemBlocks` rejoined the whole accumulated block on every line, so a single sub-256 KiB block made of many one-character lines parsed in O(n²) time (~88 s for 120k lines) and froze the extension host. Length is now tracked incrementally with a single join at the block footer.
+- Fixed a denial of service in PKCS#12/PFX parsing: the MAC and PBE iteration counts were read straight from the file into node-forge's synchronous key derivation with no cap, and a 128-byte integer parses to `Infinity`, so the derivation loop never terminated. Because CertView tries the empty password automatically when a `.p12`/`.pfx` is opened, this was reachable without any password. A preflight now reads the MAC, PBES2/PBKDF2 and PKCS#12-PBE iteration counts from the ASN.1 directly and rejects any above `MAX_PKCS12_KDF_ITERATIONS` (100,000) before node-forge runs.
+
 ## 0.5.0 - 2026-10-05
 
 ### Added

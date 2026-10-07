@@ -29,6 +29,7 @@ export function splitPemBlocks(pemContent: string): PemBlock[] {
   let inBlock = false;
   let blockType = "";
   let blockLines: string[] = [];
+  let blockCharLength = 0;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -39,13 +40,17 @@ export function splitPemBlocks(pemContent: string): PemBlock[] {
       inBlock = true;
       blockType = headerMatch[1];
       blockLines = [trimmed];
+      blockCharLength = trimmed.length;
     } else if (footerMatch && inBlock) {
-      blockLines.push(trimmed);
-      const pem = blockLines.join("\n");
-      if (pem.length > MAX_PEM_BLOCK_CHARS) {
+      blockCharLength += 1 + trimmed.length;
+      if (blockCharLength > MAX_PEM_BLOCK_CHARS) {
         throw new Error(`PEM block exceeds the maximum of ${MAX_PEM_BLOCK_CHARS} characters.`);
       }
-      const base64 = blockLines.slice(1, -1).join("").replace(/\s/g, "");
+      blockLines.push(trimmed);
+      const pem = blockLines.join("\n");
+      const firstNewline = pem.indexOf("\n");
+      const lastNewline = pem.lastIndexOf("\n");
+      const base64 = pem.slice(firstNewline + 1, lastNewline).replace(/\s/g, "");
       blocks.push({ type: blockType, base64, pem });
       if (blocks.length > MAX_PEM_BLOCKS) {
         throw new Error(`PEM file exceeds the maximum of ${MAX_PEM_BLOCKS} blocks.`);
@@ -53,11 +58,13 @@ export function splitPemBlocks(pemContent: string): PemBlock[] {
       inBlock = false;
       blockType = "";
       blockLines = [];
+      blockCharLength = 0;
     } else if (inBlock) {
-      blockLines.push(trimmed);
-      if (blockLines.join("\n").length > MAX_PEM_BLOCK_CHARS) {
+      blockCharLength += 1 + trimmed.length;
+      if (blockCharLength > MAX_PEM_BLOCK_CHARS) {
         throw new Error(`PEM block exceeds the maximum of ${MAX_PEM_BLOCK_CHARS} characters.`);
       }
+      blockLines.push(trimmed);
     }
   }
 
