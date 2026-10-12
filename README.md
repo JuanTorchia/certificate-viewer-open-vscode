@@ -190,6 +190,15 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 
 ## Release Notes
 
+### 0.5.2
+
+- Documented the Certificates explorer status view, Problems panel diagnostics, the CSR viewer, the key and JWK viewer, and PEM syntax highlighting, with new screenshots.
+- Added the Open VSX listing for VSCodium, Cursor, Windsurf, and Gitpod users.
+
+### 0.5.1
+
+- Fixed two denial-of-service issues where a crafted PEM or PKCS#12/PFX file could freeze the VS Code extension host.
+
 ### 0.5.0
 
 - Fixed PEM files with explanatory text before or between `-----BEGIN` boundaries (for example `openssl x509 -text` output or PKCS#12 Bag Attributes) failing to parse.

@@ -4,6 +4,8 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+## 0.5.2 - 2026-10-12
+
 ### Changed
 
 - Documented features that shipped without README coverage: the Certificates explorer status view, lint findings in the Problems panel (including live diagnostics while editing PEM text), the CSR viewer, the key and JWK viewer, PEM syntax highlighting, and the **Open as text** action. Added screenshots for the explorer and Problems panel, the CSR viewer, and the key viewer.
