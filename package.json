@@ -1,7 +1,7 @@
 {
   "name": "certview",
   "displayName": "CertView: X.509 Certificate Inspector",
-  "description": "Inspect X.509, PEM, DER, CSR, CRL, PKCS#7, PKCS#12/PFX, JWK, and key files locally in VS Code — offline, with no telemetry.",
+  "description": "Inspect X.509 certificates, PEM, DER, CSR, CRL, PKCS#7, PKCS#12/PFX, JWK, and key files locally in VS Code: expiry, SANs, fingerprints, chains, and lint checks. Offline, with no telemetry.",
   "version": "0.5.1",
   "publisher": "gmm",
   "license": "MIT",
@@ -47,7 +47,16 @@
     "certificate-viewer",
     "openssl",
     "security",
-    "devtools"
+    "devtools",
+    "p12",
+    "keystore",
+    "certificate-chain",
+    "expiry",
+    "expiration",
+    "fingerprint",
+    "pkcs10",
+    "pkcs8",
+    "lint"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",

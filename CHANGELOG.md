@@ -4,6 +4,14 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Documented features that shipped without README coverage: the Certificates explorer status view, lint findings in the Problems panel (including live diagnostics while editing PEM text), the CSR viewer, the key and JWK viewer, PEM syntax highlighting, and the **Open as text** action. Added screenshots for the explorer and Problems panel, the CSR viewer, and the key viewer.
+- Added the Open VSX listing to the install instructions for VSCodium, Cursor, Windsurf, and Gitpod users.
+- Expanded the Marketplace description and keywords with the terms people search for (`p12`, `keystore`, `certificate-chain`, `expiry`, `fingerprint`, `pkcs10`, `pkcs8`, `lint`).
+- Removed `certview.showExpiredWarning` from the README settings table: the setting is declared but not read by the extension.
+- Recaptured the first frame of the README demo GIF without a local file-path tooltip.
+
 ## 0.5.1 - 2026-10-07
 
 ### Security
