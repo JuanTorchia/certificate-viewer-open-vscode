@@ -126,3 +126,19 @@ Dependency PRs that require a compatibility baseline change should be split from
 ## Release Flow
 
 Maintainers publish from version tags such as `v0.3.6`. Release notes should describe user-facing changes, parser/security hardening, and compatibility notes.
+
+Steps:
+
+1. Open a release PR that bumps `package.json` `version` (`pnpm-lock.yaml` has no root version) and moves `CHANGELOG.md` `Unreleased` entries under `## X.Y.Z - YYYY-MM-DD`. Add a short entry to the README `Release Notes` section, which is what Marketplace users read.
+2. Squash-merge it, then push a lightweight tag on the merge commit: `git tag vX.Y.Z <merge-sha> && git push origin vX.Y.Z`.
+3. Create the GitHub release by hand; no workflow does it: `gh release create vX.Y.Z --generate-notes`.
+4. Check that both tag workflows pass and that both registries report the new version (the Marketplace can take a few minutes to refresh).
+
+Publishing uses no long-lived secrets:
+
+- **VS Code Marketplace** (`publish.yml`, job `Publish to Marketplace`): `azure/login` with GitHub OIDC into a Microsoft Entra app, then `vsce publish --azure-credential`. The app's federated credential trusts only the `marketplace` environment of this repository, and that environment only allows `main` and `v*` tags. `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` are environment variables, not secrets. `marketplace-auth-check.yml` (manual) verifies publisher access without publishing.
+- **Open VSX** (`publish-openvsx.yml`): `ovsx publish --trusted-publishing`, with Open VSX trusted publishing configured for this repository and workflow. Run it manually with an existing tag to backfill a version.
+
+Rotation: there is nothing to rotate on the GitHub side. If the Entra app or its federated credential is recreated, update `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` in the `marketplace` environment and run `marketplace-auth-check.yml`; the Entra identity must stay a member of the `gmm` publisher.
+
+Rollback: a published version cannot be replaced. Fix forward with a new patch tag, or unpublish the version from the Marketplace publisher portal and the Open VSX namespace page. If Entra authentication breaks, publish from a local `vsce package` VSIX through the Marketplace portal while the federated credential is repaired; do not reintroduce a repository PAT.
