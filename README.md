@@ -9,6 +9,8 @@
 **Inspect certificates without leaving VS Code.**
 CertView helps you quickly answer who issued a certificate, when it expires, which names it covers, whether a chain is ordered as expected, and what fingerprints you need to copy for reviews or incidents.
 
+Think of it as `openssl x509 -text -noout`, `openssl req -text` and `openssl crl -text` rendered inside the editor, for PEM, DER, CRT/CER, CSR, CRL, P7B, PKCS#12 (`.p12` / `.pfx`), JWK and key files.
+
 ![Open a PEM file, check expiry and details, and copy the SHA-256 fingerprint](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/docs/images/certview-demo.gif)
 
 It works offline, does not include telemetry, and does not send certificate, key, or PKI material outside your machine. No external tools, OpenSSL install, account, or network access required.
@@ -20,6 +22,7 @@ Built and maintained by [Juan Torchia](https://github.com/JuanTorchia) as part o
 ## Install
 
 - Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gmm.certview).
+- VSCodium, Cursor, Windsurf, Gitpod and other Open VSX-based editors: install from [Open VSX](https://open-vsx.org/extension/gmm/certview).
 - Or search for **CertView** in the VS Code Extensions view.
 - Open any supported certificate file to inspect it directly in the editor.
 
@@ -37,10 +40,13 @@ Double-click any certificate file and instantly see:
 - **Lint findings** — errors, warnings, and informational notices tied to RFC references
 - **RFC tooltips** — hover over sections and fields for relevant RFC guidance
 - **Local format coverage** — X.509 certificates, chains, CSRs, CRLs, PKCS#7 bundles, PKCS#12/PFX keystores, and public/private key files
+- **Certificates explorer** — every certificate-related file in the workspace with a valid / expiring / expired status per certificate
+- **Problems panel** — lint findings show up as native VS Code diagnostics, also while you edit PEM text
+- **PEM syntax highlighting** — `BEGIN`/`END` boundaries and base64 bodies are colored when a `.pem` file is opened as text
 
 ## Expiry warnings at a glance
 
-Never get caught by a surprise certificate expiration. Files expiring within 30 days get a yellow warning banner; expired certificates show a red one.
+Never get caught by a surprise certificate expiration. Files expiring within 30 days (configurable with `certview.warningDaysBeforeExpiry`) get a yellow warning banner; expired certificates show a red one.
 
 ![Certificate details view](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-cert-details.png)
 
@@ -55,6 +61,26 @@ Multi-certificate files (chains, P7B bundles) are displayed as tabbed panels —
 Self-signed and CA certificates are clearly identified.
 
 ![CA certificate view](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-ca-certificate.png)
+
+## Certificates explorer and Problems panel
+
+The **Certificates** view in the Explorer sidebar lists every supported file in the workspace. Expand a file to see each certificate with a status icon and a short description: the expiry date, `Expires in 11d` when it is within 30 days, or `Expired 46d ago`. Expand a certificate for subject, issuer, validity, serial, SHA-256 fingerprint, curve, and public exponent; key files show algorithm, format, size or curve, and SPKI SHA-256. PKCS#12 entries open in the editor, because they may need a password.
+
+Lint findings (expired or not-yet-valid certificates, missing SANs on TLS server certificates, weak signature algorithms, short RSA keys, CA and key usage mismatches, chain ordering problems) are also published to the **Problems** panel (`Ctrl+Shift+M` / `Cmd+Shift+M`) with their RFC or NIST reference, so they sit next to the rest of your workspace diagnostics. Diagnostics refresh when you open, edit, or save a supported file as text; live diagnostics skip text files larger than 1 MiB.
+
+![Certificates explorer with expiring and expired status, lint findings, and the Problems panel](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-explorer-problems.png)
+
+## Certificate Signing Requests
+
+Open a `.csr` (PKCS#10) before sending it to a CA to check what you are about to request: subject, public key algorithm and size, signature algorithm, requested SANs and extensions, CSR SHA-1/SHA-256 fingerprints, SPKI fingerprints, and the public key PEM.
+
+![CSR viewer with requested SANs, extensions, and fingerprints](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-csr-viewer.png)
+
+## Public keys, private keys, and JWKs
+
+`.key`, `.pub`, and `.jwk` files open as text by default. Run **CertView: Open Certificate** from the command palette or the editor context menu, or use **Open With... > Key Viewer**, to see the key type, algorithm (RSA, EC, Ed25519, Ed448, and runtime-supported ML-DSA), size or curve, format (PEM, DER, or JWK), SPKI SHA-1/SHA-256 fingerprints, and the public key as PEM. Matching SPKI fingerprints is a quick way to confirm that a private key, a CSR, and a certificate belong together. Encrypted private keys are detected but never decrypted.
+
+![JWK file as text next to the CertView key viewer with SPKI fingerprints and public key PEM](https://raw.githubusercontent.com/JuanTorchia/certificate-viewer-open-vscode/main/images/preview-key-viewer.png)
 
 ## Certificate Revocation Lists
 
@@ -97,6 +123,8 @@ VS Code glob patterns use `/` as the path separator, including on Windows.
 - **Hover** sections or fields in the certificate view to see RFC context
 - **Hover or focus** the `?` indicator beside fields and sections to see RFC context inside the webview
 - **Copy lint report** from the validation banner for JSON output suitable for issue comments or reviews
+- **Open as text** at the bottom of the viewer switches back to the raw file
+- **Problems panel** (`Ctrl+Shift+M`) lists CertView lint findings for open supported files
 
 ## Project status and collaboration
 
@@ -132,7 +160,6 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 | Setting | Default | Description |
 | --- | --- | --- |
 | `certview.warningDaysBeforeExpiry` | `30` | Days before expiry to show the warning banner |
-| `certview.showExpiredWarning` | `true` | Highlight expired certificates |
 | `certview.workspace.maxFiles` | `200` | Maximum certificate-related files shown in the Certificates panel before a limit notice appears |
 | `certview.workspace.excludeGlobs` | `[]` | Extra VS Code glob patterns to skip during Certificates panel scans |
 | `certview.workspace.autoRefresh` | `true` | Automatically refresh the Certificates panel when supported files change |
