@@ -4,6 +4,10 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Documented the release steps, the secretless Marketplace (Microsoft Entra) and Open VSX (trusted publishing) setup, rotation, and rollback in `CONTRIBUTING.md`.
+
 ## 0.5.2 - 2026-10-12
 
 ### Changed
