@@ -14,6 +14,9 @@
     "url": "https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues"
   },
   "homepage": "https://gmmhub.net/products/certview-vscode",
+  "sponsor": {
+    "url": "https://github.com/sponsors/JuanTorchia"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -180,25 +183,10 @@
     "configuration": {
       "title": "CertView",
       "properties": {
-        "certview.showExpiredWarning": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show warnings for expired certificates"
-        },
         "certview.warningDaysBeforeExpiry": {
           "type": "number",
           "default": 30,
-          "description": "Number of days before expiry to show warning"
-        },
-        "certview.defaultView": {
-          "type": "string",
-          "enum": [
-            "summary",
-            "details",
-            "raw"
-          ],
-          "default": "summary",
-          "description": "Default view when opening a certificate"
+          "description": "Number of days before expiry to show the warning banner and the \"Expires in Nd\" label in the Certificates explorer"
         },
         "certview.workspace.maxFiles": {
           "type": "number",

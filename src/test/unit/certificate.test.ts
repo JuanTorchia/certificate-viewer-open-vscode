@@ -4,6 +4,7 @@ import * as path from "path";
 import {
   getCertificateStatus,
   getDaysUntilExpiry,
+  getExpiryDescription,
   CertificateInfo,
 } from "../../models/certificate";
 import { parseCertificateFile } from "../../parsers/certParser";
@@ -138,5 +139,23 @@ suite("getDaysUntilExpiry", () => {
     const cert = makeCert(new Date(now.getTime() - 86400000), new Date(now.getTime() + 10 * 86400000));
     const days = getDaysUntilExpiry(cert);
     assert.ok(days >= 0 && days <= 12, `Expected 0-12 days, got ${days}`);
+  });
+});
+
+suite("getExpiryDescription", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const expiringIn = (days: number): CertificateInfo =>
+    makeCert(new Date(Date.now() - 365 * DAY), new Date(Date.now() + days * DAY + 60 * 60 * 1000));
+
+  test("labels expired certificates", () => {
+    const cert = makeCert(new Date(Date.now() - 365 * DAY), new Date(Date.now() - 3 * DAY - 60 * 60 * 1000));
+    assert.strictEqual(getExpiryDescription(cert, 30), "Expired 4d ago");
+  });
+
+  test("uses the configured warning threshold", () => {
+    assert.strictEqual(getExpiryDescription(expiringIn(45), 60), "Expires in 45d");
+    assert.strictEqual(getExpiryDescription(expiringIn(45), 30), expiringIn(45).validity.notAfter.toLocaleDateString());
+    assert.strictEqual(getExpiryDescription(expiringIn(10), 5), expiringIn(10).validity.notAfter.toLocaleDateString());
+    assert.strictEqual(getExpiryDescription(expiringIn(10), 30), "Expires in 10d");
   });
 });
