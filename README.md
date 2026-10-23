@@ -190,6 +190,11 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 
 ## Release Notes
 
+### 0.5.3
+
+- The Certificates explorer now follows `certview.warningDaysBeforeExpiry` for "Expires in Nd" labels instead of a fixed 30 days.
+- Removed the `certview.showExpiredWarning` and `certview.defaultView` settings, which had no effect.
+
 ### 0.5.2
 
 - Documented the Certificates explorer status view, Problems panel diagnostics, the CSR viewer, the key and JWK viewer, and PEM syntax highlighting, with new screenshots.
