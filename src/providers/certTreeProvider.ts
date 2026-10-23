@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { CertificateInfo, getCertificateStatus, getDaysUntilExpiry } from "../models/certificate";
+import { CertificateInfo, getCertificateStatus, getExpiryDescription } from "../models/certificate";
 import { getCertDisplayName } from "../utils/formatters";
 import { KeyInfo } from "../parsers/keyParser";
 import { parseDocument } from "../parsers/documentParser";
@@ -40,9 +40,12 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
   constructor(private readonly parsedDocumentCache?: ParsedDocumentCache) {
     this.registerFileWatcher();
     this.configWatcher = vscode.workspace.onDidChangeConfiguration(event => {
-      if (!event.affectsConfiguration("certview.workspace")) return;
-      this.registerFileWatcher();
-      this.refresh();
+      if (event.affectsConfiguration("certview.workspace")) {
+        this.registerFileWatcher();
+        this.refresh();
+      } else if (event.affectsConfiguration("certview.warningDaysBeforeExpiry")) {
+        this.refresh();
+      }
     });
   }
 
@@ -232,7 +235,8 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
 
   private certItem(cert: CertificateInfo, total: number, idx: number): CertTreeItem {
     const displayName = getCertDisplayName(cert.subject, cert.serialNumber);
-    const status = getCertificateStatus(cert);
+    const warningDays = vscode.workspace.getConfiguration("certview").get<number>("warningDaysBeforeExpiry", 30);
+    const status = getCertificateStatus(cert, warningDays);
     const item = new CertTreeItem(
       total > 1 ? `[${idx + 1}] ${displayName}` : displayName,
       vscode.TreeItemCollapsibleState.Collapsed,
@@ -241,7 +245,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
       cert,
       undefined
     );
-    item.description = this.getStatusDescription(cert);
+    item.description = getExpiryDescription(cert, warningDays);
     item.iconPath = this.getStatusIcon(status);
     item.tooltip = this.buildCertTooltip(cert);
     return item;
@@ -287,13 +291,6 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
       item.iconPath = new vscode.ThemeIcon("symbol-field");
       return item;
     });
-  }
-
-  private getStatusDescription(cert: CertificateInfo): string {
-    const days = getDaysUntilExpiry(cert);
-    if (days < 0) return `Expired ${Math.abs(days)}d ago`;
-    if (days <= 30) return `Expires in ${days}d`;
-    return cert.validity.notAfter.toLocaleDateString();
   }
 
   private getStatusIcon(status: ReturnType<typeof getCertificateStatus>): vscode.ThemeIcon {

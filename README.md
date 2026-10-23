@@ -159,7 +159,7 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `certview.warningDaysBeforeExpiry` | `30` | Days before expiry to show the warning banner |
+| `certview.warningDaysBeforeExpiry` | `30` | Days before expiry to show the warning banner and the "Expires in Nd" label in the Certificates explorer |
 | `certview.workspace.maxFiles` | `200` | Maximum certificate-related files shown in the Certificates panel before a limit notice appears |
 | `certview.workspace.excludeGlobs` | `[]` | Extra VS Code glob patterns to skip during Certificates panel scans |
 | `certview.workspace.autoRefresh` | `true` | Automatically refresh the Certificates panel when supported files change |

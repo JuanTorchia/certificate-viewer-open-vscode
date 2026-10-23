@@ -94,3 +94,10 @@ export function getDaysUntilExpiry(cert: CertificateInfo): number {
     (cert.validity.notAfter.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   );
 }
+
+export function getExpiryDescription(cert: CertificateInfo, warningDays: number): string {
+  const days = getDaysUntilExpiry(cert);
+  if (days < 0) return `Expired ${Math.abs(days)}d ago`;
+  if (days <= warningDays) return `Expires in ${days}d`;
+  return cert.validity.notAfter.toLocaleDateString();
+}

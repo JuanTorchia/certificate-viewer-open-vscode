@@ -4,8 +4,18 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- The Certificates explorer now uses `certview.warningDaysBeforeExpiry` for the "Expires in Nd" label and the expiring-soon icon instead of a hardcoded 30 days, and refreshes when the setting changes ([#101](https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues/101)).
+
+### Removed
+
+- Removed the `certview.showExpiredWarning` and `certview.defaultView` settings. They were declared but never read, so changing them had no effect ([#101](https://github.com/JuanTorchia/certificate-viewer-open-vscode/issues/101)).
+
 ### Changed
 
+- Added a GitHub Sponsors link to the extension manifest and repository.
+- Updated build and test tooling (`@vscode/vsce` 4, `mocha` 12, `eslint`, `typescript-eslint`, CodeQL actions, `markdown-it` override). No change to the shipped runtime dependencies.
 - Documented the release steps, the secretless Marketplace (Microsoft Entra) and Open VSX (trusted publishing) setup, rotation, and rollback in `CONTRIBUTING.md`.
 
 ## 0.5.2 - 2026-10-12
