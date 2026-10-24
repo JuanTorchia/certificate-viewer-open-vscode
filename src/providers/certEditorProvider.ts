@@ -1,8 +1,8 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { ParsedDocument } from "../models/parsedDocument";
-import { parseDocument } from "../parsers/documentParser";
-import { parsePkcs12, Pkcs12PasswordError } from "../parsers/pkcs12Parser";
+import { extractPkcs12CertPems, Pkcs12PasswordError } from "../parsers/pkcs12Parser";
+import { LintWorkerClient } from "../parsers/lintWorkerClient";
 import { buildWebviewHtml } from "../views/certWebview";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
 import { CertDiagnosticsProvider } from "./certDiagnostics";
@@ -15,6 +15,7 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
+    private readonly lintWorker: LintWorkerClient,
     private readonly diagnosticsProvider?: CertDiagnosticsProvider,
     private readonly parsedDocumentCache?: ParsedDocumentCache,
     private readonly onSuccessfulView?: SuccessfulViewListener
@@ -22,6 +23,7 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
   public static register(
     context: vscode.ExtensionContext,
+    lintWorker: LintWorkerClient,
     diagnosticsProvider?: CertDiagnosticsProvider,
     parsedDocumentCache?: ParsedDocumentCache,
     onSuccessfulView?: SuccessfulViewListener
@@ -32,12 +34,12 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     return vscode.Disposable.from(
       vscode.window.registerCustomEditorProvider(
         CertEditorProvider.viewType,
-        new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache, onSuccessfulView),
+        new CertEditorProvider(context, lintWorker, diagnosticsProvider, parsedDocumentCache, onSuccessfulView),
         options
       ),
       vscode.window.registerCustomEditorProvider(
         CertEditorProvider.keyViewType,
-        new CertEditorProvider(context, diagnosticsProvider, parsedDocumentCache, onSuccessfulView),
+        new CertEditorProvider(context, lintWorker, diagnosticsProvider, parsedDocumentCache, onSuccessfulView),
         options
       )
     );
@@ -71,7 +73,16 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
     const config = vscode.workspace.getConfiguration("certview");
     const warningDays: number = config.get("warningDaysBeforeExpiry", 30);
 
-    const parsed = await this.parseFile(document.uri);
+    let parsed: ParsedDocument;
+    try {
+      parsed = await this.parseFile(document.uri);
+    } catch (error) {
+      parsed = {
+        type: "error",
+        message: `Failed to parse ${path.basename(document.uri.fsPath)}`,
+        detail: error instanceof Error ? error.message : String(error),
+      };
+    }
     this.diagnosticsProvider?.setParsedDiagnostics(document.uri, parsed);
     webviewPanel.webview.html = buildWebviewHtml(
       webviewPanel.webview,
@@ -118,41 +129,40 @@ export class CertEditorProvider implements vscode.CustomReadonlyEditorProvider {
       return await this.parsedDocumentCache.get(uri.toString(), uri.fsPath);
     }
 
-    return parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath);
+    return this.lintWorker.parse(await vscode.workspace.fs.readFile(uri), uri.fsPath);
   }
 
   private async parsePkcs12File(raw: Uint8Array, fsPath: string): Promise<ParsedDocument> {
-    // Try empty password first (covers unprotected and empty-password P12s)
+    let pems: string[];
     try {
-      const items = parsePkcs12(raw, "");
-      return { type: "certificates", items };
+      pems = extractPkcs12CertPems(raw, "");
     } catch (e) {
       if (!(e instanceof Pkcs12PasswordError)) {
         return this.pkcs12ErrorDoc(fsPath, e);
       }
-    }
 
-    // Prompt user for password
-    const password = await vscode.window.showInputBox({
-      prompt: `Password for ${path.basename(fsPath)}`,
-      placeHolder: "Enter P12/PFX password",
-      password: true,
-      ignoreFocusOut: true,
-    });
+      const password = await vscode.window.showInputBox({
+        prompt: `Password for ${path.basename(fsPath)}`,
+        placeHolder: "Enter P12/PFX password",
+        password: true,
+        ignoreFocusOut: true,
+      });
 
-    if (password === undefined) {
-      return { type: "error", message: "P12/PFX password required", detail: "No password was provided." };
-    }
-
-    try {
-      const items = parsePkcs12(raw, password);
-      return { type: "certificates", items };
-    } catch (e) {
-      if (e instanceof Pkcs12PasswordError) {
-        return { type: "error", message: "Invalid P12/PFX password", detail: "The password is incorrect or the file is corrupt." };
+      if (password === undefined) {
+        return { type: "error", message: "P12/PFX password required", detail: "No password was provided." };
       }
-      return this.pkcs12ErrorDoc(fsPath, e);
+
+      try {
+        pems = extractPkcs12CertPems(raw, password);
+      } catch (passwordError) {
+        if (passwordError instanceof Pkcs12PasswordError) {
+          return { type: "error", message: "Invalid P12/PFX password", detail: "The password is incorrect or the file is corrupt." };
+        }
+        return this.pkcs12ErrorDoc(fsPath, passwordError);
+      }
     }
+
+    return this.lintWorker.parseCertificates(pems, fsPath);
   }
 
   private pkcs12ErrorDoc(fsPath: string, e: unknown): ParsedDocument {

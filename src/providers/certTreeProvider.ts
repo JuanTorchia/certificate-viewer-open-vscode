@@ -3,7 +3,7 @@ import * as path from "path";
 import { CertificateInfo, getCertificateStatus, getExpiryDescription } from "../models/certificate";
 import { getCertDisplayName } from "../utils/formatters";
 import { KeyInfo } from "../parsers/keyParser";
-import { parseDocument } from "../parsers/documentParser";
+import { LintWorkerClient } from "../parsers/lintWorkerClient";
 import { MAX_INPUT_BYTES } from "../parsers/limits";
 import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
 import { CertEditorProvider } from "./certEditorProvider";
@@ -37,7 +37,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
   private fileWatcher: vscode.FileSystemWatcher | undefined;
   private readonly configWatcher: vscode.Disposable;
 
-  constructor(private readonly parsedDocumentCache?: ParsedDocumentCache) {
+  constructor(private readonly lintWorker: LintWorkerClient, private readonly parsedDocumentCache?: ParsedDocumentCache) {
     this.registerFileWatcher();
     this.configWatcher = vscode.workspace.onDidChangeConfiguration(event => {
       if (event.affectsConfiguration("certview.workspace")) {
@@ -175,7 +175,7 @@ export class CertTreeProvider implements vscode.TreeDataProvider<CertTreeItem> {
       }
       const parsed = this.parsedDocumentCache
         ? await this.parsedDocumentCache.get(uri.toString(), uri.fsPath)
-        : parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath);
+        : await this.lintWorker.parse(await vscode.workspace.fs.readFile(uri), uri.fsPath);
 
       if (parsed.type === "crl") {
         const item = new CertTreeItem("Revocation List", vscode.TreeItemCollapsibleState.None, "field");

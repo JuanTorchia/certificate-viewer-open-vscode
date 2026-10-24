@@ -7,7 +7,9 @@ const SRC_ROOT = path.join(REPO_ROOT, "src");
 
 function readSourceFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
-    const full = path.join(dir, entry.name);
+    const name = path.basename(entry.name);
+    if (name !== entry.name || name === "." || name === "..") return [];
+    const full = `${dir}${path.sep}${name}`;
     if (entry.isDirectory()) return full === path.join(SRC_ROOT, "test") ? [] : readSourceFiles(full);
     return entry.name.endsWith(".ts") ? [fs.readFileSync(full, "utf-8")] : [];
   });

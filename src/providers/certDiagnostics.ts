@@ -2,7 +2,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { CertificateFinding, CertificateFindingSeverity } from "../models/certificate";
 import { ParsedDocument } from "../models/parsedDocument";
-import { parseDocument } from "../parsers/documentParser";
+import { LintWorkerClient } from "../parsers/lintWorkerClient";
 import { ParsedDocumentCache } from "../parsers/parsedDocumentCache";
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -16,7 +16,10 @@ export class CertDiagnosticsProvider implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private readonly timers = new Map<string, NodeJS.Timeout>();
 
-  constructor(private readonly parsedDocumentCache?: ParsedDocumentCache) {
+  constructor(
+    private readonly lintWorker: LintWorkerClient,
+    private readonly parsedDocumentCache?: ParsedDocumentCache
+  ) {
     this.disposables.push(
       this.collection,
       vscode.workspace.onDidOpenTextDocument(doc => { void this.updateTextDocument(doc); }),
@@ -38,7 +41,7 @@ export class CertDiagnosticsProvider implements vscode.Disposable {
     try {
       const parsed = this.parsedDocumentCache
         ? await this.parsedDocumentCache.get(uri.toString(), uri.fsPath)
-        : parseDocument(await vscode.workspace.fs.readFile(uri), uri.fsPath);
+        : await this.lintWorker.parse(await vscode.workspace.fs.readFile(uri), uri.fsPath);
       this.setDiagnostics(uri, parsed);
     } catch (error) {
       this.collection.set(uri, [diagnosticFromError(error)]);
@@ -71,21 +74,25 @@ export class CertDiagnosticsProvider implements vscode.Disposable {
 
   private async updateTextDocument(doc: vscode.TextDocument, version?: number): Promise<void> {
     if (!isSupportedUri(doc.uri)) return;
-    if (doc.isUntitled) return;
+    if (doc.isUntitled || doc.isClosed) return;
+    const requestedVersion = version ?? doc.version;
     try {
       this.parsedDocumentCache?.invalidate(doc.uri.toString());
-      if (version !== undefined && doc.version !== version) return;
+      if (doc.version !== requestedVersion) return;
       const text = doc.getText();
       if (Buffer.byteLength(text, "utf8") > LIVE_DIAGNOSTICS_MAX_BYTES) {
+        if (doc.isClosed || doc.version !== requestedVersion) return;
         const diagnostic = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1), "CertView live diagnostics skipped for files larger than 1 MiB; open the certificate viewer to parse with full limits.", vscode.DiagnosticSeverity.Information);
         diagnostic.source = "CertView";
         this.collection.set(doc.uri, [diagnostic]);
         return;
       }
       const raw = Buffer.from(text, "utf8");
-      if (version !== undefined && doc.version !== version) return;
-      this.setDiagnostics(doc.uri, parseDocument(raw, doc.uri.fsPath));
+      const parsed = await this.lintWorker.parse(raw, doc.uri.fsPath);
+      if (doc.isClosed || doc.version !== requestedVersion) return;
+      this.setDiagnostics(doc.uri, parsed);
     } catch (error) {
+      if (doc.isClosed || doc.version !== requestedVersion) return;
       this.collection.set(doc.uri, [diagnosticFromError(error)]);
     }
   }

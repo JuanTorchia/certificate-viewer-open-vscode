@@ -227,7 +227,7 @@
     "test": "node ./out/test/runTest.js",
     "fixtures:local": "node scripts/generate-local-fixtures.js",
     "demo:gif": "node scripts/generate-demo-gif.cjs",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src",
     "package": "vsce package --no-dependencies",
     "package:contents": "vsce ls --no-dependencies",
     "package:audit": "node scripts/audit-vsix-contents.js",
@@ -250,6 +250,7 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
+    "@noble/curves": "1.9.7",
     "node-forge": "^1.4.0"
   },
   "pnpm": {

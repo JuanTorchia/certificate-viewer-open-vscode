@@ -8,6 +8,8 @@ local/**
 src/**
 out/**
 !out/extension.js
+!out/workers/
+!out/workers/lintWorker.js
 out/test/**
 out/**/*.map
 testcerts/**

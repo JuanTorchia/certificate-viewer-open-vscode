@@ -8,11 +8,19 @@ const unexpectedPatterns = [
   /(^|\/)fixtures\//,
   /(^|\/)testcerts\//,
 ];
+const requiredFiles = ["out/extension.js", "out/workers/lintWorker.js"];
 
 async function main() {
   const files = await listFiles({ packageManager: PackageManager.None });
   const contents = `${files.join("\n")}\n`;
   process.stdout.write(contents);
+
+  const missing = requiredFiles.filter(file => !files.includes(file));
+  if (missing.length > 0) {
+    console.error("Required runtime files missing from VSIX contents:");
+    for (const file of missing) console.error(`- ${file}`);
+    process.exit(1);
+  }
 
   const unexpected = files
   .filter(Boolean)

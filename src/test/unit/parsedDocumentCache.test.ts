@@ -29,6 +29,99 @@ suite("ParsedDocumentCache", () => {
     assert.strictEqual(parseCount, 1);
   });
 
+  test("awaits an asynchronous parser before caching its result", async () => {
+    let parseCount = 0;
+    const cache = new ParsedDocumentCache({
+      stat: async (): Promise<ParsedDocumentStat> => ({ size: 12, mtime: 100 }),
+      readFile: async (): Promise<Uint8Array> => Buffer.from("certificate"),
+      parse: async (): Promise<ParsedDocument> => {
+        parseCount += 1;
+        return parsed;
+      },
+    });
+
+    const first = await cache.get("file:///cert.pem", "cert.pem");
+    const second = await cache.get("file:///cert.pem", "cert.pem");
+
+    assert.strictEqual(first, parsed);
+    assert.strictEqual(second, parsed);
+    assert.strictEqual(parseCount, 1);
+  });
+
+  test("retries an in-flight parse invalidated before it completes", async () => {
+    let parseCount = 0;
+    let startFirstParse!: () => void;
+    let releaseFirstParse!: () => void;
+    const firstParseStarted = new Promise<void>(resolve => { startFirstParse = resolve; });
+    const firstParseGate = new Promise<void>(resolve => { releaseFirstParse = resolve; });
+    const cache = new ParsedDocumentCache({
+      stat: async (): Promise<ParsedDocumentStat> => ({ size: 12, mtime: 100 }),
+      readFile: async (): Promise<Uint8Array> => Buffer.from("certificate"),
+      parse: async (): Promise<ParsedDocument> => {
+        parseCount += 1;
+        if (parseCount === 1) {
+          startFirstParse();
+          await firstParseGate;
+          return { type: "error", message: "stale parse" };
+        }
+        return parsed;
+      },
+    });
+
+    const pending = cache.get("file:///cert.pem", "cert.pem");
+    await firstParseStarted;
+    cache.invalidate("file:///cert.pem");
+    releaseFirstParse();
+
+    assert.strictEqual(await pending, parsed);
+    assert.strictEqual(parseCount, 2);
+  });
+
+  test("retries when the file stat changes during worker parsing", async () => {
+    let statCount = 0;
+    let parseCount = 0;
+    const cache = new ParsedDocumentCache({
+      stat: async (): Promise<ParsedDocumentStat> => ({ size: 12, mtime: ++statCount === 1 ? 100 : 200 }),
+      readFile: async (): Promise<Uint8Array> => Buffer.from("certificate"),
+      parse: async (): Promise<ParsedDocument> => {
+        parseCount += 1;
+        return parseCount === 1 ? { type: "error", message: "stale parse" } : parsed;
+      },
+    });
+
+    assert.strictEqual(await cache.get("file:///cert.pem", "cert.pem"), parsed);
+    assert.strictEqual(parseCount, 2);
+  });
+
+  test("does not evict a newer result when an older parse detects a stat change", async () => {
+    let statCount = 0;
+    let parseCount = 0;
+    let startFirstParse!: () => void;
+    let releaseFirstParse!: () => void;
+    const firstParseStarted = new Promise<void>(resolve => { startFirstParse = resolve; });
+    const firstParseGate = new Promise<void>(resolve => { releaseFirstParse = resolve; });
+    const cache = new ParsedDocumentCache({
+      stat: async (): Promise<ParsedDocumentStat> => ({ size: 12, mtime: ++statCount === 1 ? 100 : 200 }),
+      readFile: async (): Promise<Uint8Array> => Buffer.from("certificate"),
+      parse: async (): Promise<ParsedDocument> => {
+        if (++parseCount === 1) {
+          startFirstParse();
+          await firstParseGate;
+        }
+        return parsed;
+      },
+    });
+
+    const staleRequest = cache.get("file:///cert.pem", "cert.pem");
+    await firstParseStarted;
+    assert.strictEqual(await cache.get("file:///cert.pem", "cert.pem"), parsed);
+    releaseFirstParse();
+
+    assert.strictEqual(await staleRequest, parsed);
+    await cache.get("file:///cert.pem", "cert.pem");
+    assert.strictEqual(parseCount, 2);
+  });
+
   test("reparses when the file mtime changes", async () => {
     let mtime = 100;
     let parseCount = 0;

@@ -1,5 +1,10 @@
 import * as crypto from "crypto";
+import { p384 } from "@noble/curves/nist.js";
 import { CertificateExtension, CertificateFinding, CertificateInfo, CertificateSubject } from "../models/certificate";
+
+const SMALL_P384_SCALAR_LIMIT = 1n << 32n;
+const SMALL_P384_BSGS_WIDTH = 1 << 16;
+let p384BabySteps: Map<string, number> | undefined;
 
 export interface CertificateLintInput {
   x509: crypto.X509Certificate;
@@ -52,12 +57,64 @@ export function validateCertificate(input: CertificateLintInput): CertificateFin
   if (hasServerAuth(input.extendedKeyUsage) && !input.x509.subjectAltName) findings.push({ severity: "warning", message: "TLS server certificate should include DNS/IP subjectAltName.", rfc: "RFC 6125 §6.4.4" });
   if (/MD5|SHA1|SHA-1/i.test(input.signatureAlgorithm)) findings.push({ severity: "warning", message: `Weak signature algorithm: ${input.signatureAlgorithm}.`, rfc: "RFC 5280 §4.1.1.2" });
   if (input.publicKeyAlgorithm.startsWith("RSA") && input.publicKeySize !== undefined && input.publicKeySize < 2048) findings.push({ severity: "warning", message: `RSA public key is ${input.publicKeySize} bits; 2048 bits or larger is recommended.`, rfc: "NIST SP 800-131A" });
+  if (hasSmallP384Scalar(input.x509.publicKey)) findings.push({ severity: "error", message: "P-384 public key matches a private scalar in the first 2^32 values; the key is practically recoverable.", rfc: "NIST SP 800-56A" });
   for (const oid of duplicateExtensionOids(input.extensions)) findings.push({ severity: "error", message: `Duplicate extension OID ${oid}.`, rfc: "RFC 5280 §4.2" });
   for (const ext of input.extensions) {
     if (ext.oid === "unknown") findings.push({ severity: "info", message: `Unrecognized extension: ${ext.name}.`, rfc: "RFC 5280 §4.2" });
     if (ext.critical && ext.name === ext.oid) findings.push({ severity: "warning", message: `Critical extension ${ext.oid} is not decoded by name; relying parties must understand it.`, rfc: "RFC 5280 §4.2" });
   }
   return findings;
+}
+
+function hasSmallP384Scalar(publicKey: crypto.KeyObject): boolean {
+  if (!publicKey) return false;
+  if (publicKey.asymmetricKeyType !== "ec") return false;
+
+  try {
+    const jwk = publicKey.export({ format: "jwk" });
+    if (jwk.crv !== "P-384" || !jwk.x || !jwk.y) return false;
+    const uncompressed = Buffer.concat([Buffer.from([4]), Buffer.from(jwk.x, "base64url"), Buffer.from(jwk.y, "base64url")]);
+    let candidate = p384.ProjectivePoint.fromHex(uncompressed);
+    const babySteps = getP384BabySteps();
+    const giantStep = p384.ProjectivePoint.BASE.multiply(BigInt(SMALL_P384_BSGS_WIDTH)).negate();
+    const giantSteps = [];
+
+    for (let i = 0; i < SMALL_P384_BSGS_WIDTH; i++) {
+      giantSteps.push(candidate);
+      candidate = candidate.add(giantStep);
+    }
+
+    for (const [i, point] of p384.ProjectivePoint.normalizeZ(giantSteps).entries()) {
+      const { x, y } = point.toAffine();
+      const j = babySteps.get(pointKey(x, y));
+      const scalar = BigInt(i) * BigInt(SMALL_P384_BSGS_WIDTH) + BigInt(j ?? 0);
+      if (j !== undefined && scalar > 0n && scalar < SMALL_P384_SCALAR_LIMIT) return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+function getP384BabySteps(): Map<string, number> {
+  if (p384BabySteps) return p384BabySteps;
+  p384BabySteps = new Map();
+  let point = p384.ProjectivePoint.ZERO;
+  const babyPoints = [];
+  for (let j = 0; j < SMALL_P384_BSGS_WIDTH; j++) {
+    if (j > 0) babyPoints.push(point);
+    point = point.add(p384.ProjectivePoint.BASE);
+  }
+  for (const [index, babyPoint] of p384.ProjectivePoint.normalizeZ(babyPoints).entries()) {
+    const { x, y } = babyPoint.toAffine();
+    p384BabySteps.set(pointKey(x, y), index + 1);
+  }
+  return p384BabySteps;
+}
+
+function pointKey(x: bigint, y: bigint): string {
+  return `${x.toString(16)}:${y.toString(16)}`;
 }
 
 export function addChainFindings(certs: CertificateInfo[]): void {

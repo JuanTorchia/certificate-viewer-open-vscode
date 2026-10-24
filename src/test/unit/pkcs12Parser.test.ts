@@ -2,7 +2,7 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
 import * as forge from "node-forge";
-import { parsePkcs12, Pkcs12PasswordError } from "../../parsers/pkcs12Parser";
+import { extractPkcs12CertPems, parsePkcs12, Pkcs12PasswordError } from "../../parsers/pkcs12Parser";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs/malformed/pkcs12");
 const PKCS12_FIXTURES = {
@@ -25,6 +25,17 @@ suite("pkcs12Parser — corrupt input handling", () => {
     const certs = parsePkcs12(readBin("wrong-password.p12"), "correct-password");
     assert.strictEqual(certs.length, 1);
     assert.strictEqual(certs[0].subject.commonName, "pkcs12-test.example.com");
+  });
+
+  test("extracts public certificate PEMs without linting them", () => {
+    const pems = extractPkcs12CertPems(readBin("wrong-password.p12"), "correct-password");
+    assert.strictEqual(pems.length, 1);
+    assert.ok(pems[0].startsWith("-----BEGIN CERTIFICATE-----"));
+    assert.ok(!pems[0].includes("PRIVATE KEY"));
+    assert.throws(
+      () => extractPkcs12CertPems(readBin("wrong-password.p12"), "incorrect-password"),
+      (error: unknown) => error instanceof Pkcs12PasswordError
+    );
   });
 
   test("throws controlled parser errors for corrupt PKCS#12 fixtures", () => {

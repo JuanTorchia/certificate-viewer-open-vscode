@@ -2,6 +2,12 @@
 
 All notable changes to CertView are documented here.
 
+## Unreleased
+
+### Changed
+
+- Moved certificate parsing and linting to a persistent worker thread so large or complex files do not block the VS Code extension host. PKCS#12 passwords and private-key material remain on the host; only extracted public certificates are sent to the worker.
+
 ## 0.5.3 - 2026-10-23
 
 ### Fixed

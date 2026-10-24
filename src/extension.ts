@@ -3,26 +3,31 @@ import { CertEditorProvider } from "./providers/certEditorProvider";
 import { CertTreeProvider } from "./providers/certTreeProvider";
 import { CertDiagnosticsProvider } from "./providers/certDiagnostics";
 import { ParsedDocumentCache, ParsedDocumentStat } from "./parsers/parsedDocumentCache";
+import { LintWorkerClient } from "./parsers/lintWorkerClient";
 import { createRatingPrompt } from "./providers/ratingPromptController";
 
 export function activate(context: vscode.ExtensionContext): void {
+  const lintWorker = new LintWorkerClient(vscode.Uri.joinPath(context.extensionUri, "out", "workers", "lintWorker.js").fsPath);
+  context.subscriptions.push(lintWorker);
+
   const parsedDocumentCache = new ParsedDocumentCache({
     stat: async (uriString: string): Promise<ParsedDocumentStat> => {
       const stat = await vscode.workspace.fs.stat(vscode.Uri.parse(uriString));
       return { size: stat.size, mtime: stat.mtime };
     },
     readFile: async (uriString: string): Promise<Uint8Array> => vscode.workspace.fs.readFile(vscode.Uri.parse(uriString)),
+    parse: (raw: Uint8Array, filename: string): ReturnType<LintWorkerClient["parse"]> => lintWorker.parse(raw, filename),
   });
   context.subscriptions.push({ dispose: () => parsedDocumentCache.clear() });
 
-  const diagnosticsProvider = new CertDiagnosticsProvider(parsedDocumentCache);
+  const diagnosticsProvider = new CertDiagnosticsProvider(lintWorker, parsedDocumentCache);
   context.subscriptions.push(diagnosticsProvider);
 
   // Register the custom editor for certificate files
-  context.subscriptions.push(CertEditorProvider.register(context, diagnosticsProvider, parsedDocumentCache, createRatingPrompt(context)));
+  context.subscriptions.push(CertEditorProvider.register(context, lintWorker, diagnosticsProvider, parsedDocumentCache, createRatingPrompt(context)));
 
   // Register the sidebar tree view
-  const treeProvider = new CertTreeProvider(parsedDocumentCache);
+  const treeProvider = new CertTreeProvider(lintWorker, parsedDocumentCache);
   const treeView = vscode.window.createTreeView("certview.certExplorer", {
     treeDataProvider: treeProvider,
     showCollapseAll: true,

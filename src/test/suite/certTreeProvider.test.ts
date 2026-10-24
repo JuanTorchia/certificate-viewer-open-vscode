@@ -2,6 +2,7 @@ import * as assert from "assert";
 import * as path from "path";
 import * as vscode from "vscode";
 import { CertTreeProvider, CertTreeItem } from "../../providers/certTreeProvider";
+import { LintWorkerClient } from "../../parsers/lintWorkerClient";
 
 const FIXTURES = path.resolve(__dirname, "../fixtures/certs");
 const CERT_FIXTURES = {
@@ -15,6 +16,12 @@ const CERT_FIXTURES = {
 } as const;
 const uri = (f: keyof typeof CERT_FIXTURES): vscode.Uri => vscode.Uri.file(CERT_FIXTURES[f]);
 const MISSING_CERT = path.join(FIXTURES, "missing.pem");
+const WORKER_PATH = path.resolve(__dirname, "../../workers/lintWorker.js");
+
+function createProvider(): { provider: CertTreeProvider; lintWorker: LintWorkerClient } {
+  const lintWorker = new LintWorkerClient(WORKER_PATH);
+  return { provider: new CertTreeProvider(lintWorker), lintWorker };
+}
 
 suite("CertTreeProvider — tree view registration", () => {
   test("certview.certExplorer view is registered", async () => {
@@ -25,13 +32,15 @@ suite("CertTreeProvider — tree view registration", () => {
 
 suite("CertTreeProvider — getChildren (root level)", () => {
   let provider: CertTreeProvider;
+  let lintWorker: LintWorkerClient;
 
   setup(() => {
-    provider = new CertTreeProvider();
+    ({ provider, lintWorker } = createProvider());
   });
 
   teardown(() => {
     provider.dispose();
+    lintWorker.dispose();
   });
 
   test("returns CertTreeItem array", async () => {
@@ -61,13 +70,15 @@ suite("CertTreeProvider — getChildren (root level)", () => {
 
 suite("CertTreeProvider — getCertsFromFile", () => {
   let provider: CertTreeProvider;
+  let lintWorker: LintWorkerClient;
 
   setup(() => {
-    provider = new CertTreeProvider();
+    ({ provider, lintWorker } = createProvider());
   });
 
   teardown(() => {
     provider.dispose();
+    lintWorker.dispose();
   });
 
   async function getFileItem(file: keyof typeof CERT_FIXTURES): Promise<CertTreeItem> {
@@ -157,13 +168,15 @@ suite("CertTreeProvider — getCertsFromFile", () => {
 
 suite("CertTreeProvider — getCertFields", () => {
   let provider: CertTreeProvider;
+  let lintWorker: LintWorkerClient;
 
   setup(() => {
-    provider = new CertTreeProvider();
+    ({ provider, lintWorker } = createProvider());
   });
 
   teardown(() => {
     provider.dispose();
+    lintWorker.dispose();
   });
 
   test("cert item expands to field items", async () => {
@@ -203,10 +216,11 @@ suite("CertTreeProvider — getCertFields", () => {
 
 suite("CertTreeProvider — refresh", () => {
   test("refresh fires onDidChangeTreeData event", done => {
-    const provider = new CertTreeProvider();
+    const { provider, lintWorker } = createProvider();
     const sub = provider.onDidChangeTreeData(() => {
       sub.dispose();
       provider.dispose();
+      lintWorker.dispose();
       done();
     });
     provider.refresh();

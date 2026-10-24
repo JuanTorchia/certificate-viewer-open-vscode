@@ -21,6 +21,12 @@ class Pkcs12IterationLimitError extends Error {}
  * Throws Pkcs12PasswordError if the password is wrong or MAC verification fails.
  */
 export function parsePkcs12(raw: Uint8Array, password: string): CertificateInfo[] {
+  return extractPkcs12CertPems(raw, password).flatMap(pem => {
+    try { return parseCertificateFile(pem); } catch { return []; }
+  });
+}
+
+export function extractPkcs12CertPems(raw: Uint8Array, password: string): string[] {
   assertWithinInputLimit(raw.byteLength, "PKCS#12 file");
   let p12: forge.pkcs12.Pkcs12Pfx;
   try {
@@ -39,24 +45,23 @@ export function parsePkcs12(raw: Uint8Array, password: string): CertificateInfo[
     throw e;
   }
 
-  const certs: CertificateInfo[] = [];
+  const pems: string[] = [];
   for (const sc of p12.safeContents) {
     for (const bag of sc.safeBags) {
       if (bag.type !== forge.pki.oids.certBag || !bag.cert) {
         continue;
       }
       try {
-        const pem = forge.pki.certificateToPem(bag.cert);
-        certs.push(...parseCertificateFile(pem));
+        pems.push(forge.pki.certificateToPem(bag.cert));
       } catch {
         // skip unreadable cert bags
       }
-      if (certs.length > MAX_CERTIFICATES) {
+      if (pems.length > MAX_CERTIFICATES) {
         throw new Error(`PKCS#12 file exceeds the maximum of ${MAX_CERTIFICATES} certificates.`);
       }
     }
   }
-  return certs;
+  return pems;
 }
 
 function assertSafePkcs12Iterations(pfx: forge.asn1.Asn1): void {
