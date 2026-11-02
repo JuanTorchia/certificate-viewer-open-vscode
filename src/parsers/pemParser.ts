@@ -42,6 +42,9 @@ export function splitPemBlocks(pemContent: string): PemBlock[] {
       blockLines = [trimmed];
       blockCharLength = trimmed.length;
     } else if (footerMatch && inBlock) {
+      if (footerMatch[1] !== blockType) {
+        throw new Error(`PEM END boundary ${footerMatch[1]} does not match BEGIN ${blockType}.`);
+      }
       blockCharLength += 1 + trimmed.length;
       if (blockCharLength > MAX_PEM_BLOCK_CHARS) {
         throw new Error(`PEM block exceeds the maximum of ${MAX_PEM_BLOCK_CHARS} characters.`);

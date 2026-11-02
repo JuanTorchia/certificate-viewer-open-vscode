@@ -6,7 +6,12 @@ All notable changes to CertView are documented here.
 
 ### Security
 
+- Updated the bundled node-forge runtime to 1.4.2, including the upstream PEM decoding and PKCS#12 iteration fixes. Added bounded subprocess regressions, a runtime dependency audit gate and Node 18 parser compatibility checks (#114).
 - Updated the publishing toolchain's Azure Identity dependency to 4.14.1 and MSAL Node to 7.1.2, resolving GHSA-xcx6-jx8p-x3h5 in development dependencies without changing the extension runtime or VS Code compatibility baseline (#113).
+
+### Fixed
+
+- Reject PEM blocks whose END label differs from their BEGIN label, and preserve invalid PKCS#12 MAC iteration errors instead of reporting them as wrong passwords (#114).
 
 ## 0.5.3 - 2026-10-23
 
