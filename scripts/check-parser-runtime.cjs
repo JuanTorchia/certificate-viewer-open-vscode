@@ -17,7 +17,7 @@ assert.equal(parsePkcs12(pfx, "correct-password").length, 1);
 assert.throws(() => parsePkcs12(pfx, "wrong-password"), Pkcs12PasswordError);
 
 // Generate a disposable CSR in memory; never persist or print its private key.
-const keys = crypto.generateKeyPairSync("rsa", { modulusLength: 1024 });
+const keys = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
 const request = forge.pki.createCertificationRequest();
 request.publicKey = forge.pki.publicKeyFromPem(keys.publicKey.export({ type: "spki", format: "pem" }).toString());
 request.setSubject([{ name: "commonName", value: "runtime-check.example.com" }]);
