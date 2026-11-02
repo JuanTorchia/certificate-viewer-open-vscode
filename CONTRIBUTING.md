@@ -114,6 +114,53 @@ Runtime-dependent crypto support must remain guarded. Newer algorithms, key form
 
 Dependency PRs that require a compatibility baseline change should be split from unrelated feature work. The PR description should state the old baseline, the new baseline, why the change is needed, and which local and CI checks validate it.
 
+## Dependency override policy
+
+`pnpm.overrides` enforces safe minimums for development and publishing tools.
+Use caret ranges so a future lockfile update can select compatible corrections;
+`pnpm install --frozen-lockfile` still installs only the reviewed versions in the
+committed lockfile. A range does not update CI dependencies automatically, and
+Dependabot proposals still require review and the full validation below.
+
+Current classification (all are safe-minimum ranges, not exact clamps):
+
+| Override | Minimum range | Purpose |
+| --- | --- | --- |
+| `brace-expansion` | `^5.0.12` | Tooling glob expansion |
+| `diff` | `^9.0.0` | Test/reporting tooling |
+| `form-data` | `^4.0.6` | Publishing HTTP tooling |
+| `js-yaml` | `^4.3.2` | Tooling configuration parsing |
+| `linkify-it` | `^5.0.2` | Marketplace Markdown links |
+| `markdown-it` | `^14.3.3` | Marketplace Markdown rendering |
+| `qs` | `^6.17.1` | Tooling HTTP query parsing |
+| `serialize-javascript` | `^7.1.3` | Test tooling serialization |
+| `tmp` | `^0.2.7` | Tooling temporary files; stays below0.3.0 |
+| `undici` | `^8.11.2` | Publishing HTTP tooling |
+| `uuid` | `^14.0.1` | Publishing tooling identifiers |
+| `glob` | `^14.0.3` | Package/test file discovery |
+
+These ranges retain the already-reviewed major lines; they do not establish
+that every historical cross-major override is compatible with every future
+consumer. Validate frozen install, lint, unit and VS Code integration tests,
+Node18 parser smoke, packaging and raw dependency audits for each lock update.
+Review publishing-tool changes with the protected Marketplace auth-check
+workflow. Do not change the VS Code/Node type baselines to accommodate tooling.
+
+The old `fast-uri`4.x override was removed for #68: the current resolved graph
+has no `fast-uri` or Ajv8 entry. Its only Ajv is6.15.0, using `uri-js`4.4.1.
+There is no current consumer for either a forced4.x or a speculative3.x floor.
+If a future dependency introduces `fast-uri`, review that consumer's requested
+range and current advisories before adding a new override.
+
+The deliberate exact **source patch** is separate from these minimums:
+`pnpm.patchedDependencies` binds `minimatch@10.2.6` to the checked-in upstream
+preprocessing backport and lockfile patch hash (#121). Minimatch11 removes
+`makeRe()`, so forcing that major across existing consumers is unsafe. Keep the
+patch until compatible upstream consumers are verified. The existing
+`scripts/check-tooling-backports.cjs` gate checks CJS/ESM bounds and API behavior;
+raw version-based audit findings remain visible. A new exact override or patch
+must document its compatibility reason, linked issue and removal condition here.
+
 ## Pull Request Expectations
 
 - Explain the user-visible change.
