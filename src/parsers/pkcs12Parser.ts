@@ -14,7 +14,7 @@ export class Pkcs12PasswordError extends Error {
   }
 }
 
-class Pkcs12IterationLimitError extends Error {}
+class Pkcs12IterationError extends Error {}
 
 /**
  * Extracts certificates from a PKCS#12 / PFX binary buffer.
@@ -29,7 +29,7 @@ export function parsePkcs12(raw: Uint8Array, password: string): CertificateInfo[
     assertSafePkcs12Iterations(asn1);
     p12 = forge.pkcs12.pkcs12FromAsn1(asn1, false, password);
   } catch (e) {
-    if (e instanceof Pkcs12IterationLimitError) {
+    if (e instanceof Pkcs12IterationError) {
       throw e;
     }
     const msg = e instanceof Error ? e.message : String(e);
@@ -148,7 +148,7 @@ function asn1Oid(node: forge.asn1.Asn1 | undefined): string | undefined {
 
 function assertIterationLimit(encoded: string, label: string): void {
   if (encoded.length === 0 || (encoded.charCodeAt(0) & 0x80) !== 0) {
-    throw new Error(`${label} iteration count must be a positive integer.`);
+    throw new Pkcs12IterationError(`${label} iteration count must be a positive integer.`);
   }
 
   let firstSignificantByte = 0;
@@ -156,7 +156,7 @@ function assertIterationLimit(encoded: string, label: string): void {
     firstSignificantByte += 1;
   }
   if (firstSignificantByte === encoded.length) {
-    throw new Error(`${label} iteration count must be a positive integer.`);
+    throw new Pkcs12IterationError(`${label} iteration count must be a positive integer.`);
   }
 
   const significantBytes = encoded.length - firstSignificantByte;
@@ -175,5 +175,5 @@ function assertIterationLimit(encoded: string, label: string): void {
 }
 
 function throwIterationLimitError(label: string): never {
-  throw new Pkcs12IterationLimitError(`${label} iteration count exceeds the maximum of ${MAX_PKCS12_KDF_ITERATIONS}.`);
+  throw new Pkcs12IterationError(`${label} iteration count exceeds the maximum of ${MAX_PKCS12_KDF_ITERATIONS}.`);
 }

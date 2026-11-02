@@ -42,6 +42,34 @@ suite("pkcs12Parser — corrupt input handling", () => {
     }
   });
 
+  for (const [label, build] of [
+    ["MAC", minimalPfxWithMacIterations],
+    ["PBES2", (value: string) => minimalPfxWithVisibleAlgorithm(pbes2Algorithm(value))],
+    ["PBE", (value: string) => minimalPfxWithVisibleAlgorithm(pkcs12PbeAlgorithm(value))],
+  ] as const) {
+    test(`rejects non-positive ${label} iterations without reporting a password error`, () => {
+      const originalParser = forge.pkcs12.pkcs12FromAsn1;
+      let parserCalled = false;
+      forge.pkcs12.pkcs12FromAsn1 = (): never => {
+        parserCalled = true;
+        throw new Error("Unexpected parser invocation");
+      };
+      try {
+        for (const encoded of ["", "\x00", "\xff"]) {
+          assert.throws(() => parsePkcs12(build(encoded), ""), (error: unknown) => {
+            assert.ok(error instanceof Error);
+            assert.ok(!(error instanceof Pkcs12PasswordError));
+            assert.match(error.message, /iteration count must be a positive integer/);
+            return true;
+          });
+        }
+        assert.strictEqual(parserCalled, false);
+      } finally {
+        forge.pkcs12.pkcs12FromAsn1 = originalParser;
+      }
+    });
+  }
+
   test("rejects an enormous MAC iteration count before invoking node-forge PKCS#12 parsing", function (): void {
     this.timeout(2_000);
     const pfx = minimalPfxWithMacIterations("\x00" + "\xff".repeat(128));
