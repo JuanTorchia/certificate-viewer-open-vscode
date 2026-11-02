@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify tooling security backports
+        run: node scripts/check-tooling-backports.cjs
+
       - name: Audit runtime dependencies
         run: pnpm audit --prod --audit-level=high
 

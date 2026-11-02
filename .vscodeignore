@@ -30,3 +30,6 @@ tsconfig.test.json
 pnpm-lock.yaml
 pnpm-workspace.yaml
 *.vsix
+
+# Build-only dependency backports.
+patches/**
