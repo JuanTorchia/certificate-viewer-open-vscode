@@ -4,6 +4,9 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+### Changed
+- Replaced development-tool override pins with documented safe-minimum ranges and removed the unused fast-uri cross-major override; resolved dependency versions and the exact minimatch security backport are unchanged (#68).
+
 ### Security
 - Updated development-only qs, serialize-javascript and glob to patched releases; backported minimatch preprocessing limits while retaining APIs used by existing tooling. Dependency audits still report the minimatch version because they do not recognize the source backport (#121).
 
