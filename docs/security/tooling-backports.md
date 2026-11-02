@@ -22,3 +22,9 @@ support is unchanged; serializer is only used by tooling on Node 22.
 Reverting this patch restores the vulnerable preprocessing code. This tooling
 change does not require a marketplace release; runtime node-forge remains 1.4.2.
 Override-policy issue #68 remains open for the other overrides and fast-uri.
+
+Lockfile-only verification on 2026-11-02 resolved glob 14.0.3, its minimatch
+11.0.4, qs 6.17.1 and serializer 7.1.4. The raw full audit dropped from four
+advisories to one moderate; that remaining counter is the patched 10.2.6 copy.
+The frozen-install, real execution and publisher authentication gates remain
+required before integration.
