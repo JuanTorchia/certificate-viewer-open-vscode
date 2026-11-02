@@ -2,6 +2,12 @@
 
 All notable changes to CertView are documented here.
 
+## Unreleased
+
+### Security
+
+- Updated the publishing toolchain's Azure Identity dependency to 4.14.1 and MSAL Node to 7.1.2, resolving GHSA-xcx6-jx8p-x3h5 in development dependencies without changing the extension runtime or VS Code compatibility baseline (#113).
+
 ## 0.5.3 - 2026-10-23
 
 ### Fixed
