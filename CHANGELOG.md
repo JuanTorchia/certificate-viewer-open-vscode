@@ -4,6 +4,8 @@ All notable changes to CertView are documented here.
 
 ## Unreleased
 
+## 0.5.4 - 2026-11-02
+
 ### Security
 
 - Updated the bundled node-forge runtime to 1.4.2, including the upstream PEM decoding and PKCS#12 iteration fixes. Added bounded subprocess regressions, a runtime dependency audit gate and Node 18 parser compatibility checks (#114).

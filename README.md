@@ -190,6 +190,12 @@ CertView is open to focused contributions in parsing, diagnostics, webview UX, t
 
 ## Release Notes
 
+### 0.5.4
+
+- Updated the bundled node-forge runtime to 1.4.2 with PEM decoding and PKCS#12 security fixes.
+- Reject mismatched PEM boundaries and report invalid PKCS#12 iteration metadata without prompting for a different password.
+- Retained VS Code 1.85 / Node 18 compatibility; added runtime audit and parser compatibility checks to CI.
+
 ### 0.5.3
 
 - The Certificates explorer now follows `certview.warningDaysBeforeExpiry` for "Expires in Nd" labels instead of a fixed 30 days.
